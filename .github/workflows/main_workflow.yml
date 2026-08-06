@@ -1,15 +1,10 @@
-name: AI Video Automation Pipeline (Local AI)
+name: Movie Clips & Facts Editing Pipeline
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      nitter_rss_url:
-        description: 'URL of the Nitter RSS feed (e.g. https://nitter.net/elonmusk/rss)'
-        required: false
-        type: string
   schedule:
     - cron: '0 */2 * * *'
 
@@ -19,7 +14,8 @@ jobs:
     permissions:
       contents: write
     env:
-      NVIDIA_API_KEY: "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"
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_RUN_ID: ${{ github.run_id }}
       GITHUB_SERVER_URL: ${{ github.server_url }}
@@ -38,44 +34,22 @@ jobs:
       - name: Install Python Dependencies
         run: pip install -r requirements.txt
 
-      # Downloader Agent
-      - name: Run Downloader Agent
-        env:
-          NITTER_RSS_URL: ${{ github.event.inputs.nitter_rss_url }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      # Downloader Agent (YouTube)
+      - name: Run YouTube Downloader Agent
         run: python agents/downloader_agent.py
 
-      # Video Analysis Agent
+      # Video Analysis Agent (7s clip + interesting facts)
       - name: Run Video Analysis Agent
         run: python agents/video_analysis_agent.py
-
-      # Script Writer Agent
-      - name: Run Script Writer Agent
-        run: python agents/script_writer_agent.py
-
-      # Voice Generation Agent
-      - name: Run Voice Generation Agent
-        run: python agents/voice_generation_agent.py
-
-      # Smart Editing Agent
-      - name: Run Smart Editing Agent
-        run: python agents/smart_editing_agent.py
-
-      # Upload Agent
-      - name: Run Upload Agent
-        env:
-          GDRIVE_OAUTH_TOKEN: ${{ secrets.GDRIVE_OAUTH_TOKEN }}
-          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID || '1yvO0w9wiM5HrrhHgvQngKElxYS0G92BG' }}
-        run: python agents/upload_agent.py
 
       # Report Agent
       - name: Run Report Agent
         if: always()
         env:
-          DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/1534270008241426624/XczwalKI8oizscF9zR7v8dGzz7ovdkeNYr3nATitaZTb-IqLX8HfB1HNvd5QhA9pO0b0"
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python agents/report_agent.py
 
-      # Save Final Memory Artifact (for debugging)
+      # Save Memory Database (for debugging)
       - name: Upload Memory SQLite Database
         if: always()
         uses: actions/upload-artifact@v4
@@ -83,10 +57,10 @@ jobs:
           name: memory-database
           path: memory.db
 
-      # Save Final Video
-      - name: Upload Final Video
+      # Save the 7-second Clip
+      - name: Upload 7s Clip
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: final-video
-          path: exports/
+          name: seven-second-clip
+          path: clips/

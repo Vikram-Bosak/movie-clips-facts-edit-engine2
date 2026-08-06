@@ -3,18 +3,16 @@ import sys
 import uuid
 import json
 import asyncio
-import urllib.request
-import urllib.parse
-import xml.etree.ElementTree as ET
-import re
-from datetime import datetime, timezone, timedelta
-from email.utils import parsedate_to_datetime
+import subprocess
+from datetime import datetime, timezone
 from loguru import logger
-from openai import OpenAI
 from memory_agent import async_update_memory
 
 # Track downloaded videos locally and persist to git history.txt
 HISTORY_FILE = "history.txt"
+# File with one YouTube video/playlist URL per line (# = comment)
+SOURCES_FILE = "sources.txt"
+
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
@@ -22,200 +20,149 @@ def load_history():
             return set(line.strip() for line in f if line.strip())
     return set()
 
+
 def save_history(url: str):
     with open(HISTORY_FILE, "a", encoding="utf-8") as f:
         f.write(url.strip() + "\n")
     # Commit and push back to repository to persist state across workflow runs
     try:
-        import subprocess
-        # Configure temporary git identity if needed
-        subprocess.run(["git", "config", "user.name", "AI Video Agent"], check=True)
-        subprocess.run(["git", "config", "user.email", "agent@ai.com"], check=True)
+        subprocess.run(["git", "config", "user.name", "Movie Facts Agent"], check=True)
+        subprocess.run(["git", "config", "user.email", "agent@movie-facts.com"], check=True)
         subprocess.run(["git", "add", HISTORY_FILE], check=True)
         subprocess.run(["git", "commit", "-m", f"Track processed video: {url}"], check=True)
-        
+
         pat = os.environ.get("GH_TOKEN")
         if pat:
-            repo = os.environ.get("GITHUB_REPOSITORY", "Vikram-Bosak/funny-video-eddit-agent")
+            repo = os.environ.get("GITHUB_REPOSITORY", "Vikram-Bosak/movie-clips-facts-edit-engine2")
             push_url = f"https://{pat}@github.com/{repo}.git"
             subprocess.run(["git", "push", push_url, "main"], check=True)
         else:
             subprocess.run(["git", "push", "origin", "main"], check=True)
-            
+
         logger.info(f"Successfully committed and pushed {HISTORY_FILE} updates.")
     except Exception as e:
         logger.warning(f"Git commit/push for history tracking failed: {e}")
 
-async def is_video_funny(title: str, description: str) -> bool:
-    content_lower = (title + " " + description).lower()
-    funny_keywords = ["funny", "fail", "comedy", "hilarious", "laugh", "prank", "meme", "lmao", "lol", "unexpected", "joke", "crazy"]
-    
-    if any(kw in content_lower for kw in funny_keywords):
-        logger.info(f"Funniness verified by local keyword match: '{title}'")
-        return True
-        
-    api_key = os.environ.get("NVIDIA_API_KEY", "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")
-    client = OpenAI(
-        base_url="https://integrate.api.nvidia.com/v1",
-        api_key=api_key
-    )
-    prompt = f"""
-    You are an expert comedy analyst. Analyze the following video title and description.
-    Determine if this video content is likely a funny fail, funny moment, comedy prank, try not to laugh, or comedic meme video.
-    
-    Video Title: {title}
-    Video Description: {description}
-    
-    Is this video funny/humorous? Answer YES or NO.
-    """
-    try:
-        def query():
-            completion = client.chat.completions.create(
-              model="nvidia/nemotron-3-ultra-550b-a55b",
-              messages=[{"role":"user","content": prompt}],
-              temperature=0.1,
-              max_tokens=20,
-              stream=False
-            )
-            return completion.choices[0].message.content.strip().upper()
-        res = await asyncio.to_thread(query)
-        logger.info(f"LLM humor check result for '{title}': {res}")
-        # Return True unless the LLM explicitly says NO
-        if "NO" in res and "YES" not in res:
-            return False
-        return True
-    except Exception as e:
-        logger.warning(f"Humor check failed, defaulting to True: {e}")
-        return True
 
-async def download_video(rss_url_arg: str = None):
-    logger.info("Starting Multi-Keyword Nitter Search Downloader...")
-    
-    # Track duplicates
-    processed_urls = load_history()
-    
-    keywords = [
-        "funny fails", "epic fails", "comedy moments", 
-        "hilarious prank", "try not to laugh meme", "unexpected funny video"
-    ]
-    
-    nitter_instances = [
-        "https://nitter.poast.org",
-        "https://nitter.net",
-        "https://nitter.privacydev.net",
-        "https://nitter.perennialte.ch"
-    ]
-    
-    time_limit = datetime.now(timezone.utc) - timedelta(days=7) # Look back 7 days for more options
-    valid_videos = []
-    
-    for keyword in keywords:
-        logger.info(f"Searching keyword: {keyword}")
-        rss_fetched = False
-        items = []
-        
-        for instance in nitter_instances:
-            # Query Nitter search with media filter
-            encoded_query = urllib.parse.quote(f"{keyword} filter:media")
-            url = f"{instance}/search/rss?f=tweets&q={encoded_query}"
-            try:
-                def fetch_url(url):
-                    headers = {'User-Agent': 'Mozilla/5.0'}
-                    req = urllib.request.Request(url, headers=headers)
-                    with urllib.request.urlopen(req, timeout=10) as response:
-                        return response.read()
-                        
-                xml_data = await asyncio.to_thread(fetch_url, url)
-                root = ET.fromstring(xml_data)
-                items = root.findall('.//item')
-                rss_fetched = True
-                break
-            except Exception:
+def load_sources():
+    if not os.path.exists(SOURCES_FILE):
+        logger.error(f"Sources file {SOURCES_FILE} not found.")
+        return []
+    urls = []
+    with open(SOURCES_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
                 continue
-                
-        if not rss_fetched:
-            logger.warning(f"Could not fetch search RSS for query: {keyword}")
-            continue
-            
-        for item in items:
-            link = item.find('link').text if item.find('link') is not None else ""
-            pubDate_str = item.find('pubDate').text if item.find('pubDate') is not None else ""
-            desc = item.find('description').text if item.find('description') is not None else ""
-            title = item.find('title').text if item.find('title') is not None else "Funny Video"
-            
-            if not link or not pubDate_str:
+            urls.append(line)
+    return urls
+
+
+def canonical_url(video_id: str) -> str:
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
+async def resolve_entries(url: str):
+    """Resolve a single video or playlist URL into a list of video entries."""
+    cmd = ["yt-dlp", "--flat-playlist", "--skip-download", "-J", url]
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            logger.warning(f"yt-dlp metadata failed for {url}: {stderr.decode()[:200]}")
+            return []
+
+        data = json.loads(stdout)
+    except Exception as e:
+        logger.warning(f"Error resolving {url}: {e}")
+        return []
+
+    if data.get("_type") == "playlist":
+        entries = data.get("entries", []) or []
+        resolved = []
+        for e in entries:
+            video_id = e.get("id")
+            if not video_id:
                 continue
-                
-            if ">Video<" not in desc and "Video" not in desc:
-                continue
-                
-            try:
-                tweet_id = link.split("/status/")[1].split("#")[0].split("?")[0]
-            except:
-                continue
-                
-            try:
-                post_time = parsedate_to_datetime(pubDate_str)
-                if post_time.tzinfo is None:
-                    post_time = post_time.replace(tzinfo=timezone.utc)
-            except:
-                continue
-                
-            if post_time < time_limit:
-                continue
-                
-            # Extract user from link if available
-            username = "TwitterUser"
-            try:
-                username = link.split(".org/")[1].split("/status/")[0]
-            except:
-                try:
-                    username = link.split(".net/")[1].split("/status/")[0]
-                except:
-                    pass
-                    
-            original_tweet_url = f"https://twitter.com/{username}/status/{tweet_id}"
-            
-            # Skip duplicates
-            if original_tweet_url in processed_urls:
-                continue
-                
-            # HTML tag cleaning for description check
-            clean_desc = re.sub('<[^<]+?>', '', desc) if desc else ""
-            
-            valid_videos.append({
-                "url": original_tweet_url,
-                "title": title,
-                "description": clean_desc
+            resolved.append({
+                "url": canonical_url(video_id),
+                "title": e.get("title"),
+                "channel": e.get("uploader") or e.get("channel"),
+                "duration": e.get("duration"),
             })
-            
-    if not valid_videos:
-        logger.error("No valid recent and un-processed videos found.")
+        logger.info(f"Resolved playlist '{data.get('title')}' with {len(resolved)} videos.")
+        return resolved
+
+    video_id = data.get("id")
+    if not video_id:
+        logger.warning(f"Could not extract video id from {url}")
+        return []
+    return [{
+        "url": canonical_url(video_id),
+        "title": data.get("title"),
+        "channel": data.get("uploader") or data.get("channel"),
+        "duration": data.get("duration"),
+    }]
+
+
+async def fetch_full_metadata(video_url: str):
+    """Fetch full metadata (title, description, channel, duration) for a video."""
+    cmd = ["yt-dlp", "--skip-download", "-J", video_url]
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            logger.warning(f"Full metadata fetch failed for {video_url}")
+            return {}
+        return json.loads(stdout)
+    except Exception as e:
+        logger.warning(f"Error fetching full metadata: {e}")
+        return {}
+
+
+async def download_video():
+    logger.info("Starting YouTube Movie Clip Downloader...")
+
+    processed_urls = load_history()
+    sources = load_sources()
+    if not sources:
+        logger.error(f"No sources found in {SOURCES_FILE}. Add YouTube video/playlist URLs.")
         sys.exit(1)
-        
+
+    candidates = []
+    for src in sources:
+        for entry in await resolve_entries(src):
+            if entry["url"] not in processed_urls:
+                candidates.append(entry)
+
+    if not candidates:
+        logger.error("No new un-processed videos found in sources.")
+        sys.exit(1)
+
     os.makedirs("downloads", exist_ok=True)
     video_id = str(uuid.uuid4())
     output_path = f"downloads/{video_id}.mp4"
-    
-    # Try downloading videos until one succeeds and passes humor check
-    for video in valid_videos:
+
+    for video in candidates:
         target_url = video["url"]
-        
-        # Verify humor before downloading
-        is_funny = await is_video_funny(video["title"], video["description"])
-        if not is_funny:
-            logger.info(f"Skipping non-funny video: {target_url}")
-            continue
-            
-        logger.info(f"Attempting to download {target_url}...")
-        
+        logger.info(f"Attempting to download {target_url} - {video.get('title')}")
+
         command = [
             "yt-dlp",
             "--output", output_path,
+            "--merge-output-format", "mp4",
             "--quiet",
             target_url
         ]
-        
+
         try:
             proc = await asyncio.create_subprocess_exec(
                 *command,
@@ -223,17 +170,21 @@ async def download_video(rss_url_arg: str = None):
                 stderr=asyncio.subprocess.PIPE
             )
             stdout, stderr = await proc.communicate()
-            
+
             if proc.returncode == 0 and os.path.exists(output_path):
                 logger.success(f"Download successful! Video ID: {video_id}")
-                
-                # Save to history to prevent duplicates in future runs
+
                 save_history(target_url)
-                
+
+                metadata = await fetch_full_metadata(target_url)
+                logger.info(f"Metadata: title='{metadata.get('title')}', channel='{metadata.get('uploader')}', duration={metadata.get('duration')}s")
+
                 await async_update_memory(video_id, {
                     "source_url": target_url,
-                    "original_title": video["title"],
-                    "original_description": video["description"],
+                    "youtube_title": metadata.get("title") or video.get("title") or "Untitled",
+                    "youtube_description": metadata.get("description") or "",
+                    "youtube_channel": metadata.get("uploader") or video.get("channel") or "",
+                    "source_duration": float(metadata.get("duration") or video.get("duration") or 0),
                     "local_video_path": output_path,
                     "start_time": datetime.now(timezone.utc).isoformat(),
                     "github_repository": os.environ.get("GITHUB_REPOSITORY"),
@@ -243,12 +194,14 @@ async def download_video(rss_url_arg: str = None):
                 return
             else:
                 logger.warning(f"yt-dlp failed for {target_url}. Trying next video...")
+                if os.path.exists(output_path):
+                    os.remove(output_path)
         except Exception as e:
             logger.warning(f"Error executing yt-dlp: {e}")
-            
-    logger.error("Failed to download any funny and unprocessed video.")
+
+    logger.error("Failed to download any movie clip.")
     sys.exit(1)
 
+
 if __name__ == "__main__":
-    nitter_rss = os.environ.get("NITTER_RSS_URL", "")
-    asyncio.run(download_video(nitter_rss))
+    asyncio.run(download_video())

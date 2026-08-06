@@ -33,6 +33,17 @@ class MemoryModel(BaseModel):
     crop_start: Optional[float] = None
     crop_duration: Optional[float] = None
     sound_effects: Optional[str] = None
+    # --- New workflow fields (movie clips / facts) ---
+    youtube_title: Optional[str] = None
+    youtube_description: Optional[str] = None
+    youtube_channel: Optional[str] = None
+    source_duration: Optional[float] = None
+    clip_start: Optional[float] = None
+    clip_duration: Optional[float] = None
+    clip_path: Optional[str] = None
+    clip_transcript: Optional[str] = None
+    clip_scene_analysis: Optional[str] = None  # JSON string
+    fact_text: Optional[str] = None
     error: Optional[str] = None
 
 def init_db():
@@ -62,6 +73,16 @@ def init_db():
             crop_start REAL,
             crop_duration REAL,
             sound_effects TEXT,
+            youtube_title TEXT,
+            youtube_description TEXT,
+            youtube_channel TEXT,
+            source_duration REAL,
+            clip_start REAL,
+            clip_duration REAL,
+            clip_path TEXT,
+            clip_transcript TEXT,
+            clip_scene_analysis TEXT,
+            fact_text TEXT,
             error TEXT
         )
     ''')
@@ -69,6 +90,16 @@ def init_db():
         c.execute("ALTER TABLE memory ADD COLUMN sound_effects TEXT")
     except sqlite3.OperationalError:
         pass
+    for col in [
+        "youtube_title TEXT", "youtube_description TEXT", "youtube_channel TEXT",
+        "source_duration REAL", "clip_start REAL", "clip_duration REAL",
+        "clip_path TEXT", "clip_transcript TEXT", "clip_scene_analysis TEXT",
+        "fact_text TEXT",
+    ]:
+        try:
+            c.execute(f"ALTER TABLE memory ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
     conn.commit()
     conn.close()
     logger.info("Database initialized.")

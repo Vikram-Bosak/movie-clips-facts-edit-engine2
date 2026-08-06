@@ -1,6 +1,7 @@
 venv/
 downloads/
 exports/
+clips/
 audio/
 memory.db
 *.onnx

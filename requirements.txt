@@ -8,7 +8,6 @@ pysubs2
 pydub
 librosa
 ultralytics
-piper-tts
 pydantic
 python-dotenv
 loguru
@@ -17,7 +16,3 @@ google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
 openai
-feedparser
-kokoro-onnx
-soundfile
-onnxruntime
