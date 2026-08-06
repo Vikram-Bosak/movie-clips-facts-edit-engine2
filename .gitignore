@@ -8,6 +8,7 @@ assets/background_space.mp4
 assets/starfield.png
 *.onnx
 *.json
+!layout_config.json
 __pycache__/
 .env
 .DS_Store

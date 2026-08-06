@@ -1,0 +1,55 @@
+{
+  "canvas": {
+    "width": 720,
+    "height": 1280,
+    "fps": 30
+  },
+  "background": {
+    "asset": "assets/background_space.mp4",
+    "auto_generate": true,
+    "generate_duration": 30,
+    "starfield_png": "assets/starfield.png"
+  },
+  "movie_clip": {
+    "region": {
+      "x": 0,
+      "y": 0,
+      "width": 720,
+      "height": 760
+    }
+  },
+  "fact_text": {
+    "enabled": true,
+    "font": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "font_size": 34,
+    "text_color": "#FFFFFF",
+    "box_color": "#00000099",
+    "max_lines": 2,
+    "max_chars_per_line": 34,
+    "padding": 18,
+    "bottom_margin": 24
+  },
+  "profile_section": {
+    "enabled": true,
+    "region": {
+      "x": 0,
+      "y": 760,
+      "width": 720,
+      "height": 220
+    },
+    "bg_color": "#0d0d1a",
+    "placeholder_text": "MOVIE FACTS DAILY",
+    "placeholder_subtext": "Template coming soon"
+  },
+  "reaction_character": {
+    "enabled": true,
+    "asset": "assets/reaction.mp4",
+    "region": {
+      "x": 0,
+      "y": 980,
+      "width": 720,
+      "height": 300
+    },
+    "include_audio": false
+  }
+}
