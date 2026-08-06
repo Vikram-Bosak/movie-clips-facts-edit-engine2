@@ -4,6 +4,8 @@ exports/
 clips/
 audio/
 memory.db
+assets/background_space.mp4
+assets/starfield.png
 *.onnx
 *.json
 __pycache__/
