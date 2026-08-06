@@ -62,6 +62,16 @@ def canonical_url(video_id: str) -> str:
     return f"https://www.youtube.com/watch?v={video_id}"
 
 
+def _entry_url(e: dict, is_youtube: bool) -> str:
+    """Build a usable download URL for a resolved entry."""
+    url = e.get("webpage_url") or e.get("url") or e.get("original_url")
+    if url and url.startswith("http"):
+        return url
+    if is_youtube:
+        return canonical_url(e.get("id", ""))
+    return None
+
+
 async def resolve_entries(url: str):
     """Resolve a single video or playlist URL into a list of video entries."""
     cmd = ["yt-dlp", "--flat-playlist", "--skip-download", "-J", url]
@@ -81,15 +91,18 @@ async def resolve_entries(url: str):
         logger.warning(f"Error resolving {url}: {e}")
         return []
 
+    extractor = (data.get("extractor_key") or "").lower()
+
     if data.get("_type") == "playlist":
         entries = data.get("entries", []) or []
         resolved = []
         for e in entries:
-            video_id = e.get("id")
-            if not video_id:
+            is_youtube = "youtube" in (e.get("extractor_key") or "").lower()
+            eurl = _entry_url(e, is_youtube)
+            if not eurl:
                 continue
             resolved.append({
-                "url": canonical_url(video_id),
+                "url": eurl,
                 "title": e.get("title"),
                 "channel": e.get("uploader") or e.get("channel"),
                 "duration": e.get("duration"),
@@ -97,12 +110,16 @@ async def resolve_entries(url: str):
         logger.info(f"Resolved playlist '{data.get('title')}' with {len(resolved)} videos.")
         return resolved
 
+    is_youtube = "youtube" in extractor
     video_id = data.get("id")
     if not video_id:
         logger.warning(f"Could not extract video id from {url}")
         return []
+    eurl = data.get("webpage_url") or data.get("original_url")
+    if not eurl or not eurl.startswith("http"):
+        eurl = canonical_url(video_id) if is_youtube else url
     return [{
-        "url": canonical_url(video_id),
+        "url": eurl,
         "title": data.get("title"),
         "channel": data.get("uploader") or data.get("channel"),
         "duration": data.get("duration"),

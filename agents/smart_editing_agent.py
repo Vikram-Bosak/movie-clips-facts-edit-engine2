@@ -133,15 +133,17 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
 
     audio_label = None
     audio_kind = None  # "filter" -> filtergraph output label, "stream" -> input stream specifier
-    if clip_has_audio and include_reaction_audio and reaction_has_audio:
+    if clip_has_audio:
         parts.append("[1:a]aformat=sample_rates=44100:channel_layouts=stereo[a1]")
-        parts.append(f"[{reaction_input_idx}:a]aformat=sample_rates=44100:channel_layouts=stereo[a4]")
-        parts.append("[a1][a4]amix=inputs=2:duration=first:normalize=0[aout]")
-        audio_label, audio_kind = "aout", "filter"
-    elif clip_has_audio:
-        audio_label, audio_kind = "1:a", "stream"
+        if include_reaction_audio and reaction_has_audio:
+            parts.append(f"[{reaction_input_idx}:a]aformat=sample_rates=44100:channel_layouts=stereo[a4]")
+            parts.append("[a1][a4]amix=inputs=2:duration=first:normalize=0[aout]")
+            audio_label, audio_kind = "aout", "filter"
+        else:
+            audio_label, audio_kind = "a1", "filter"
     elif include_reaction_audio and reaction_has_audio:
-        audio_label, audio_kind = f"{reaction_input_idx}:a", "stream"
+        parts.append(f"[{reaction_input_idx}:a]aformat=sample_rates=44100:channel_layouts=stereo[a4]")
+        audio_label, audio_kind = "a4", "filter"
 
     cmd += ["-filter_complex", ";".join(parts)]
 
