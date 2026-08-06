@@ -185,6 +185,27 @@ async def edit_video():
     try:
         bg_path = ensure_background(cfg)
 
+        # Reaction character video (optional)
+        reaction_path = None
+        reaction_cfg = cfg.get("reaction_character", {})
+        if reaction_cfg.get("enabled", True):
+            candidate = reaction_cfg.get("asset", f"{ASSETS_DIR}/reaction.mp4")
+            if os.path.exists(candidate):
+                reaction_path = candidate
+            else:
+                logger.warning(f"Reaction character video not found at {candidate}. Skipping (will be added later).")
+
+        # Adaptive layout: without a reaction video, extend the clip to fill the
+        # reaction band and move the profile section to the bottom of the frame.
+        if not reaction_path:
+            react_region = reaction_cfg.get("region", {})
+            boundary = int(react_region.get("y", int(canvas["height"]) * 0.75))
+            cfg["movie_clip"]["region"]["height"] = boundary
+            profile_region = cfg["profile_section"]["region"]
+            profile_region["y"] = boundary
+            profile_region["height"] = int(canvas["height"]) - boundary
+            logger.info(f"No reaction video -> clip extended to y={boundary}, profile moved to bottom.")
+
         # Render fact text overlay
         fact_png = None
         if cfg.get("fact_text", {}).get("enabled", True) and fact_text:
@@ -197,16 +218,6 @@ async def edit_video():
             render_profile_section(cfg, profile_png)
         else:
             profile_png = None
-
-        # Reaction character video (optional)
-        reaction_path = None
-        reaction_cfg = cfg.get("reaction_character", {})
-        if reaction_cfg.get("enabled", True):
-            candidate = reaction_cfg.get("asset", f"{ASSETS_DIR}/reaction.mp4")
-            if os.path.exists(candidate):
-                reaction_path = candidate
-            else:
-                logger.warning(f"Reaction character video not found at {candidate}. Skipping (will be added later).")
 
         os.makedirs(EXPORTS_DIR, exist_ok=True)
         command, out_path = build_ffmpeg_command(
