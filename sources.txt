@@ -1,2 +1,6 @@
-# Movie clip sources for the downloader agent.
-https://archive.org/details/Sintel
+# Marvel & DC Hollywood Movie Clips sources for the downloader agent.
+https://www.youtube.com/watch?v=UaVTIH8lhTo
+https://www.youtube.com/watch?v=EXeTwQWrcwY
+https://www.youtube.com/watch?v=kYJv8Psc7L4
+https://www.youtube.com/watch?v=kE-3f1_323k
+https://www.youtube.com/watch?v=t_1wWJ-HhW0
