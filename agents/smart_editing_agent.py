@@ -71,7 +71,8 @@ def ffmpeg_probe_duration(path):
         return None
 
 
-def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration, arrow_x, arrow_y):
+def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration,
+                         arrow_x, arrow_y, arrow_x_start, arrow_y_start, arrow_x_end, arrow_y_end, arrow_t_start, arrow_t_end):
     canvas = cfg["canvas"]
     W, H = int(canvas["width"]), int(canvas["height"])
 
@@ -125,15 +126,30 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
         parts.append(f"[{cur_label}][2:v]overlay=0:0[bgpcf]")
         cur_label = "bgpcf"
 
-    # 4. Overlay red arrow pointing to the main subject with bounce animation
+    # 4. Overlay red arrow pointing to the main subject with bounce animation and motion tracking
     arrow_w, arrow_h = 80, 80
-    ax = cx + int((arrow_x or 0.5) * cw) - (arrow_w // 2)
-    ay = cy + int((arrow_y or 0.5) * ch) - arrow_h - 15
-    ay = max(cy + 10, ay) # Clamp arrow Y so it never goes above the movie clip region (fact text card)
-    bounce_expression = f"({ay}) - 15 + 15*sin(6.28318*t/0.8)"
+    
+    x_start = arrow_x_start if arrow_x_start is not None else (arrow_x or 0.5)
+    y_start = arrow_y_start if arrow_y_start is not None else (arrow_y or 0.5)
+    x_end = arrow_x_end if arrow_x_end is not None else x_start
+    y_end = arrow_y_end if arrow_y_end is not None else y_start
+    t_start = arrow_t_start if arrow_t_start is not None else 1.0
+    t_end = arrow_t_end if arrow_t_end is not None else 1.8
+    duration = max(0.1, t_end - t_start)
+
+    # Calculate actual pixel coordinates on video clip region
+    ax_start = cx + int(x_start * cw) - (arrow_w // 2)
+    ay_start = max(cy + 10, cy + int(y_start * ch) - arrow_h - 15)
+    ax_end = cx + int(x_end * cw) - (arrow_w // 2)
+    ay_end = max(cy + 10, cy + int(y_end * ch) - arrow_h - 15)
+
+    # FFmpeg expressions for linear motion tracking interpolation
+    ax_expression = f"{ax_start} + ({ax_end - ax_start}) * (t - {t_start}) / {duration}"
+    ay_base = f"{ay_start} + ({ay_end - ay_start}) * (t - {t_start}) / {duration}"
+    bounce_expression = f"({ay_base}) - 15 + 15*sin(6.28318*t/0.8)"
     
     parts.append(f"[{arrow_input_idx}:v]scale={arrow_w}:{arrow_h}[arrow_scaled]")
-    parts.append(f"[{cur_label}][arrow_scaled]overlay={ax}:{bounce_expression}:shortest=1[{cur_label}_arrow]")
+    parts.append(f"[{cur_label}][arrow_scaled]overlay=x='{ax_expression}':y='{bounce_expression}':enable='between(t,{t_start},{t_end})':shortest=1[{cur_label}_arrow]")
     cur_label = f"{cur_label}_arrow"
 
     if reaction_path:
@@ -254,7 +270,8 @@ async def edit_video():
         os.makedirs(EXPORTS_DIR, exist_ok=True)
         command, out_path = build_ffmpeg_command(
             cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration,
-            memory.arrow_x, memory.arrow_y
+            memory.arrow_x, memory.arrow_y, memory.arrow_x_start, memory.arrow_y_start,
+            memory.arrow_x_end, memory.arrow_y_end, memory.arrow_t_start, memory.arrow_t_end
         )
 
         logger.info(f"Running FFmpeg composition -> {out_path}")

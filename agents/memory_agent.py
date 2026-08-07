@@ -49,6 +49,12 @@ class MemoryModel(BaseModel):
     youtube_keywords: Optional[str] = None
     arrow_x: Optional[float] = None
     arrow_y: Optional[float] = None
+    arrow_x_start: Optional[float] = None
+    arrow_y_start: Optional[float] = None
+    arrow_x_end: Optional[float] = None
+    arrow_y_end: Optional[float] = None
+    arrow_t_start: Optional[float] = None
+    arrow_t_end: Optional[float] = None
     error: Optional[str] = None
 
 def init_db():
@@ -101,6 +107,9 @@ def init_db():
         "clip_path TEXT", "clip_transcript TEXT", "clip_scene_analysis TEXT",
         "fact_text TEXT", "downloader_logs TEXT", "youtube_tags TEXT", "youtube_keywords TEXT",
         "arrow_x REAL", "arrow_y REAL",
+        "arrow_x_start REAL", "arrow_y_start REAL",
+        "arrow_x_end REAL", "arrow_y_end REAL",
+        "arrow_t_start REAL", "arrow_t_end REAL",
     ]:
         try:
             c.execute(f"ALTER TABLE memory ADD COLUMN {col}")
