@@ -255,10 +255,8 @@ async def edit_video():
             logger.info("No reaction video -> keeping standard layout design.")
 
         # Render fact text overlay
-        fact_png = None
-        if cfg.get("fact_text", {}).get("enabled", True) and fact_text:
-            fact_png = f"{EXPORTS_DIR}/{video_id}_fact.png"
-            render_fact_overlay(fact_text, cfg, int(canvas["width"]), int(canvas["height"]), fact_png)
+        fact_png = f"{EXPORTS_DIR}/{video_id}_fact.png"
+        render_fact_overlay(fact_text or "", cfg, int(canvas["width"]), int(canvas["height"]), fact_png)
 
         # Render profile section placeholder
         profile_png = f"{EXPORTS_DIR}/{video_id}_profile.png"

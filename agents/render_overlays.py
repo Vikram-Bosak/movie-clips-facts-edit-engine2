@@ -184,6 +184,22 @@ def render_fact_overlay(text, cfg, canvas_w, canvas_h, output_path):
             
         ty += line_height
 
+    # Draw @SpideyPunch watermark at the bottom center of the movie clip
+    clip_region = cfg.get("movie_clip", {}).get("region", {"x": 60, "y": 420, "width": 600, "height": 420})
+    cx, cy = int(clip_region["x"]), int(clip_region["y"])
+    cw, ch = int(clip_region["width"]), int(clip_region["height"])
+    
+    watermark_text = cfg.get("profile_section", {}).get("placeholder_subtext", "@SpideyPunch")
+    watermark_font = _load_font(FONT_BOLD, 18)
+    try:
+        w_width = draw.textlength(watermark_text, font=watermark_font)
+    except Exception:
+        w_width = draw.textbbox((0, 0), watermark_text, font=watermark_font)[2]
+        
+    wx = cx + (cw - int(w_width)) // 2
+    wy = cy + ch - 35
+    draw.text((wx, wy), watermark_text, font=watermark_font, fill=(255, 255, 255, 100))
+
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     img.save(output_path)
     return output_path
