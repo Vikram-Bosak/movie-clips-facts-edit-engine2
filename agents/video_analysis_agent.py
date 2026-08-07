@@ -244,7 +244,18 @@ Act as a viral pop culture and movie trivia creator for Instagram Reels/YouTube 
 Generate 1 behind-the-scenes (BTS) fact for the movie/TV show: {title}.
 
 Strictly follow this structure:
-1. Hook: Start with "When filming [Movie Name] ([Release Year]), ..." (e.g. "When filming Spider-Man 2 (2004), ...").
+1. Hook: Start with a natural, diverse, and unique opening phrase. Do NOT always start with "When filming...". Instead, use different opening styles for each movie, such as:
+   - "During the filming of [Movie Name] ([Release Year]), ..."
+   - "While shooting [Movie Name] ([Release Year]), ..."
+   - "Behind the scenes of [Movie Name] ([Release Year]), ..."
+   - "Did you know that in [Movie Name] ([Release Year]), ..."
+   - "A little-known fact about [Movie Name] ([Release Year]) is that ..."
+   - "The director of [Movie Name] ([Release Year]) revealed that ..."
+   - "One hidden detail in [Movie Name] ([Release Year]) is ..."
+   - "Most people missed this detail in [Movie Name] ([Release Year]): ..."
+   - "Here is a surprising fact about [Movie Name] ([Release Year]): ..."
+   - "Fun fact about [Movie Name] ([Release Year]): ..."
+   - "A crazy secret from the set of [Movie Name] ([Release Year]): ..."
 2. Story: Describe an unscripted moment, accidental injury, actor's improvisation, or set secret in 30-40 simple words.
 3. No Double Quotes: Do NOT use any double quotes " " anywhere in the fact text. If there is a quote from the actor/director, write it as normal text (e.g. Levy said they had to push Blender to its limits).
 4. Bold Key Words: Bold the most dramatic/important keywords (especially in the statement or quote) by wrapping them in double asterisks (e.g. **accidentally**, **improvised**, **smashed**, **secret**, **idea**).
