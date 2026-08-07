@@ -22,7 +22,7 @@ def get_oauth_credentials():
             token_data = json.loads(token_str)
             creds = Credentials.from_authorized_user_info(token_data, scopes)
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
+                creds.refresh(Request(timeout=10.0))
             return creds
         except Exception as e:
             logger.error(f"Failed to parse GDRIVE_OAUTH_TOKEN: {e}")
@@ -33,7 +33,7 @@ def get_oauth_credentials():
         try:
             creds = Credentials.from_authorized_user_file("token.json", scopes)
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
+                creds.refresh(Request(timeout=10.0))
             return creds
         except Exception as e:
             logger.error(f"Failed to load token.json: {e}")
@@ -59,7 +59,8 @@ async def upload_video():
     api_key = os.environ.get("NVIDIA_API_KEY", "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")
     client = OpenAI(
         base_url="https://integrate.api.nvidia.com/v1",
-        api_key=api_key
+        api_key=api_key,
+        timeout=15.0
     )
     
     prompt = f"""Generate a short 3-5 word snake_case filename in lowercase for this video.
