@@ -220,15 +220,25 @@ Do not output any explanation or extra text.
         if clip_frames > 1:
             frame_times.append(clip_frames * 0.5 / clip_fps)
             frame_times.append((clip_frames - 1) / clip_fps)
+        delogo_boxes = []
         for t in frame_times:
             clip_cap.set(cv2.CAP_PROP_POS_FRAMES, int(t * clip_fps))
             ret, frame = clip_cap.read()
             if not ret:
                 continue
+            h_f, w_f = frame.shape[:2]
             try:
-                text_results = reader.readtext(frame, detail=0)
-                if text_results:
-                    ocr_results.extend(text_results)
+                text_results = reader.readtext(frame, detail=1)
+                for res in text_results:
+                    bbox, text_str, conf = res
+                    xs = [pt[0] for pt in bbox]
+                    ys = [pt[1] for pt in bbox]
+                    x_min_n = float(min(xs)) / w_f
+                    y_min_n = float(min(ys)) / h_f
+                    x_max_n = float(max(xs)) / w_f
+                    y_max_n = float(max(ys)) / h_f
+                    delogo_boxes.append([x_min_n, y_min_n, x_max_n, y_max_n])
+                    ocr_results.append(text_str)
             except Exception:
                 pass
             try:
@@ -320,6 +330,7 @@ Output ONLY the raw fact paragraph text. Do not number it, do not add explanatio
             "arrow_y_end": arrow_y_end,
             "arrow_t_start": arrow_t_start,
             "arrow_t_end": arrow_t_end,
+            "delogo_regions": json.dumps(delogo_boxes),
         })
 
         logger.success("Video analysis and fact generation complete.")

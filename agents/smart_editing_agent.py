@@ -71,8 +71,47 @@ def ffmpeg_probe_duration(path):
         return None
 
 
+def ffmpeg_probe_dimensions(path):
+    try:
+        probe_w = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width",
+             "-of", "default=nw=1:nk=1", path],
+            capture_output=True, text=True, check=True
+        )
+        probe_h = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=height",
+             "-of", "default=nw=1:nk=1", path],
+            capture_output=True, text=True, check=True
+        )
+        return int(probe_w.stdout.strip()), int(probe_h.stdout.strip())
+    except Exception:
+        return None
+
+
+def detect_green_key_color(video_path):
+    import cv2
+    import numpy as np
+    try:
+        cap = cv2.VideoCapture(video_path)
+        ret, frame = cap.read()
+        cap.release()
+        if not ret:
+            return "0x2E794B"
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        green_mask = (hsv[:, :, 0] >= 35) & (hsv[:, :, 0] <= 85) & (hsv[:, :, 1] >= 40) & (hsv[:, :, 2] >= 40)
+        green_count = np.sum(green_mask)
+        if green_count > 1000:
+            avg_green_bgr = frame[green_mask].mean(axis=0)
+            r, g, b = int(avg_green_bgr[2]), int(avg_green_bgr[1]), int(avg_green_bgr[0])
+            return f"0x{r:02X}{g:02X}{b:02X}"
+    except Exception:
+        pass
+    return "0x2E794B"
+
+
 def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration,
-                         arrow_x, arrow_y, arrow_x_start, arrow_y_start, arrow_x_end, arrow_y_end, arrow_t_start, arrow_t_end):
+                         arrow_x, arrow_y, arrow_x_start, arrow_y_start, arrow_x_end, arrow_y_end, arrow_t_start, arrow_t_end,
+                         reaction_green_color, delogo_regions_str):
     canvas = cfg["canvas"]
     W, H = int(canvas["width"]), int(canvas["height"])
 
@@ -108,10 +147,53 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
     arrow_input_idx = input_idx
     input_idx += 1
 
+    # Apply delogo filters if text/watermark regions are detected
+    delogo_filters = []
+    if delogo_regions_str:
+        try:
+            boxes = json.loads(delogo_regions_str)
+            orig_w, orig_h = 1920, 1080
+            probe = ffmpeg_probe_dimensions(clip_path)
+            if probe:
+                orig_w, orig_h = probe
+            
+            scale_factor = max(cw / orig_w, ch / orig_h)
+            w_scaled = orig_w * scale_factor
+            h_scaled = orig_h * scale_factor
+            x_offset = (w_scaled - cw) / 2
+            y_offset = (h_scaled - ch) / 2
+            
+            for box in boxes:
+                x_min_n, y_min_n, x_max_n, y_max_n = box
+                x_clip = x_min_n * w_scaled - x_offset
+                y_clip = y_min_n * h_scaled - y_offset
+                x_max_clip = x_max_n * w_scaled - x_offset
+                y_max_clip = y_max_n * h_scaled - y_offset
+                
+                # Clamp to clip boundaries and add a small padding
+                x_clip = max(2, min(cw - 10, x_clip - 5))
+                y_clip = max(2, min(ch - 10, y_clip - 5))
+                w_blur = max(4, min(cw - x_clip - 2, (x_max_clip - x_clip) + 10))
+                h_blur = max(4, min(ch - y_clip - 2, (y_max_clip - y_clip) + 10))
+                
+                # Ensure even values for delogo filter
+                x_clip, y_clip = int(x_clip) | 1, int(y_clip) | 1
+                w_blur, h_blur = int(w_blur) & ~1, int(h_blur) & ~1
+                
+                if w_blur > 5 and h_blur > 5:
+                    delogo_filters.append(f"delogo=x={x_clip}:y={y_clip}:w={w_blur}:h={h_blur}:show=0")
+        except Exception as e:
+            logger.warning(f"Failed to parse delogo regions: {e}")
+
     # Filter graph
     parts = []
     parts.append(f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setpts=PTS-STARTPTS,format=yuv420p[bg]")
-    parts.append(f"[1:v]scale={cw}:{ch}:force_original_aspect_ratio=increase,crop={cw}:{ch},setpts=PTS-STARTPTS[clip]")
+    
+    delogo_chain = ",".join(delogo_filters)
+    if delogo_chain:
+        parts.append(f"[1:v]scale={cw}:{ch}:force_original_aspect_ratio=increase,crop={cw}:{ch},{delogo_chain},setpts=PTS-STARTPTS[clip]")
+    else:
+        parts.append(f"[1:v]scale={cw}:{ch}:force_original_aspect_ratio=increase,crop={cw}:{ch},setpts=PTS-STARTPTS[clip]")
     
     # 1. Overlay profile/card png onto background
     profile_input_idx = 3 if fact_png else 2
@@ -156,7 +238,7 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
         reaction_region = cfg["reaction_character"]["region"]
         rw, rh = int(reaction_region["width"]), int(reaction_region["height"])
         rx, ry = int(reaction_region["x"]), int(reaction_region["y"])
-        parts.append(f"[{reaction_input_idx}:v]crop=608:1080:656:0,scale={rw}:{rh}:force_original_aspect_ratio=increase,crop={rw}:{rh},chromakey=0x2E794B:0.32:0.04,setpts=PTS-STARTPTS[react]")
+        parts.append(f"[{reaction_input_idx}:v]crop=608:1080:656:0,scale={rw}:{rh}:force_original_aspect_ratio=increase,crop={rw}:{rh},chromakey={reaction_green_color}:0.22:0.02,setpts=PTS-STARTPTS[react]")
         parts.append(f"[{cur_label}][react]overlay={rx}:{ry}:shortest=1[outv]")
         video_label = "outv"
     else:
@@ -265,11 +347,17 @@ async def edit_video():
         else:
             profile_png = None
 
+        reaction_green_color = "0x2E794B"
+        if reaction_path:
+            reaction_green_color = detect_green_key_color(reaction_path)
+            logger.info(f"Dynamically detected reaction green key color: {reaction_green_color}")
+
         os.makedirs(EXPORTS_DIR, exist_ok=True)
         command, out_path = build_ffmpeg_command(
             cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration,
             memory.arrow_x, memory.arrow_y, memory.arrow_x_start, memory.arrow_y_start,
-            memory.arrow_x_end, memory.arrow_y_end, memory.arrow_t_start, memory.arrow_t_end
+            memory.arrow_x_end, memory.arrow_y_end, memory.arrow_t_start, memory.arrow_t_end,
+            reaction_green_color, memory.delogo_regions
         )
 
         logger.info(f"Running FFmpeg composition -> {out_path}")

@@ -55,6 +55,7 @@ class MemoryModel(BaseModel):
     arrow_y_end: Optional[float] = None
     arrow_t_start: Optional[float] = None
     arrow_t_end: Optional[float] = None
+    delogo_regions: Optional[str] = None
     error: Optional[str] = None
 
 def init_db():
@@ -110,6 +111,7 @@ def init_db():
         "arrow_x_start REAL", "arrow_y_start REAL",
         "arrow_x_end REAL", "arrow_y_end REAL",
         "arrow_t_start REAL", "arrow_t_end REAL",
+        "delogo_regions TEXT"
     ]:
         try:
             c.execute(f"ALTER TABLE memory ADD COLUMN {col}")
