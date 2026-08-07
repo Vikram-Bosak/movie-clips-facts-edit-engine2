@@ -179,6 +179,10 @@ Do not output any explanation or extra text.
         yolo_model = YOLO('yolov8n.pt')
         reader = easyocr.Reader(['en'], gpu=False)
 
+        best_conf = 0.0
+        arrow_x = 0.5
+        arrow_y = 0.5
+
         clip_cap = cv2.VideoCapture(clip_path)
         clip_fps = clip_cap.get(cv2.CAP_PROP_FPS)
         clip_frames = int(clip_cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -200,8 +204,16 @@ Do not output any explanation or extra text.
             try:
                 results = yolo_model(frame, verbose=False)
                 for r in results:
-                    for c in r.boxes.cls:
-                        objects_detected.add(yolo_model.names[int(c)])
+                    for box in r.boxes:
+                        conf = float(box.conf[0])
+                        cls_idx = int(box.cls[0])
+                        # Keep track of the most confident object for the red arrow highlight
+                        if conf > best_conf:
+                            best_conf = conf
+                            coords = box.xyxyn[0].tolist()
+                            arrow_x = (coords[0] + coords[2]) / 2.0
+                            arrow_y = coords[1] # Point at top edge of the bounding box
+                        objects_detected.add(yolo_model.names[cls_idx])
             except Exception:
                 pass
         clip_cap.release()
@@ -268,6 +280,8 @@ Output ONLY the raw fact paragraph text. Do not number it, do not add explanatio
             "clip_transcript": clip_transcript,
             "clip_scene_analysis": json.dumps(clip_scene_analysis),
             "fact_text": fact_text,
+            "arrow_x": arrow_x,
+            "arrow_y": arrow_y,
         })
 
         logger.success("Video analysis and fact generation complete.")

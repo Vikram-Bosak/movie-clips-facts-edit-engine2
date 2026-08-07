@@ -12,6 +12,7 @@ from render_overlays import (
     generate_starfield_png,
     render_fact_overlay,
     render_profile_section,
+    generate_red_arrow_png,
 )
 
 CONFIG_FILE = "layout_config.json"
@@ -70,7 +71,7 @@ def ffmpeg_probe_duration(path):
         return None
 
 
-def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration):
+def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration, arrow_x, arrow_y):
     canvas = cfg["canvas"]
     W, H = int(canvas["width"]), int(canvas["height"])
 
@@ -99,6 +100,13 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
         reaction_input_idx = input_idx
         input_idx += 1
 
+    # Red Arrow Overlay Input
+    arrow_png = f"{ASSETS_DIR}/red_arrow.png"
+    generate_red_arrow_png(arrow_png)
+    cmd += ["-loop", "1", "-framerate", str(canvas["fps"]), "-i", arrow_png]
+    arrow_input_idx = input_idx
+    input_idx += 1
+
     # Filter graph
     parts = []
     parts.append(f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setpts=PTS-STARTPTS,format=yuv420p[bg]")
@@ -116,6 +124,16 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
     if fact_png:
         parts.append(f"[{cur_label}][2:v]overlay=0:0[bgpcf]")
         cur_label = "bgpcf"
+
+    # 4. Overlay red arrow pointing to the main subject with bounce animation
+    arrow_w, arrow_h = 80, 80
+    ax = cx + int((arrow_x or 0.5) * cw) - (arrow_w // 2)
+    ay = cy + int((arrow_y or 0.5) * ch) - arrow_h - 15
+    bounce_expression = f"{ay} - 15 + 15*sin(2*pi*t/0.8)"
+    
+    parts.append(f"[{arrow_input_idx}:v]scale={arrow_w}:{arrow_h}[arrow_scaled]")
+    parts.append(f"[{cur_label}][arrow_scaled]overlay={ax}:{bounce_expression}:shortest=1[{cur_label}_arrow]")
+    cur_label = f"{cur_label}_arrow"
 
     if reaction_path:
         reaction_region = cfg["reaction_character"]["region"]
@@ -234,7 +252,8 @@ async def edit_video():
 
         os.makedirs(EXPORTS_DIR, exist_ok=True)
         command, out_path = build_ffmpeg_command(
-            cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration
+            cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration,
+            memory.arrow_x, memory.arrow_y
         )
 
         logger.info(f"Running FFmpeg composition -> {out_path}")

@@ -279,3 +279,29 @@ def render_profile_section(cfg, output_path):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     img.save(output_path)
     return output_path
+
+
+def generate_red_arrow_png(output_path):
+    """Draw a classic, transparent Red Arrow pointing down with a white outline border."""
+    img = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    # Outer boundaries (white outline border)
+    head_outer = [(48, 110), (152, 110), (100, 192)]
+    stem_outer = [(70, 20), (130, 20), (130, 115), (70, 115)]
+    
+    # Inner boundaries (solid red fill)
+    head_inner = [(58, 115), (142, 115), (100, 180)]
+    stem_inner = [(80, 28), (120, 28), (120, 115), (80, 115)]
+    
+    # Draw border (white)
+    draw.polygon(head_outer, fill=(255, 255, 255, 255))
+    draw.polygon(stem_outer, fill=(255, 255, 255, 255))
+    
+    # Draw fill (red)
+    draw.polygon(head_inner, fill=(255, 0, 0, 255))
+    draw.polygon(stem_inner, fill=(255, 0, 0, 255))
+    
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    img.save(output_path)
+    return output_path

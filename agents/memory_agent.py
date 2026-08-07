@@ -47,6 +47,8 @@ class MemoryModel(BaseModel):
     downloader_logs: Optional[str] = None
     youtube_tags: Optional[str] = None
     youtube_keywords: Optional[str] = None
+    arrow_x: Optional[float] = None
+    arrow_y: Optional[float] = None
     error: Optional[str] = None
 
 def init_db():
@@ -98,6 +100,7 @@ def init_db():
         "source_duration REAL", "clip_start REAL", "clip_duration REAL",
         "clip_path TEXT", "clip_transcript TEXT", "clip_scene_analysis TEXT",
         "fact_text TEXT", "downloader_logs TEXT", "youtube_tags TEXT", "youtube_keywords TEXT",
+        "arrow_x REAL", "arrow_y REAL",
     ]:
         try:
             c.execute(f"ALTER TABLE memory ADD COLUMN {col}")
