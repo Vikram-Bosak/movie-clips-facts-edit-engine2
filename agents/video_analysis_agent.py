@@ -270,10 +270,12 @@ Detected Objects: {objects_str}
         logger.info("Generating interesting movie fact(s) with AI...")
         fact_prompt = f"""
 Act as a viral pop culture and movie trivia creator for Instagram Reels/YouTube Shorts.
-Generate 1 behind-the-scenes (BTS) fact for the movie/TV show: {title}.
+Generate 1 behind-the-scenes (BTS) fact or production secret for the movie/TV show: {title}.
+
+Write in a highly engaging, casual, opinionated, and conversational fan tone. It should feel like a real human fan sharing movie trivia, not a template-driven AI bot.
 
 Strictly follow this structure:
-1. Hook: Start with a natural, diverse, and unique opening phrase. Do NOT always start with "When filming...". Instead, use different opening styles for each movie, such as:
+1. Hook & Sentence Structure: Start with a natural, diverse, and unique opening phrase mentioning the movie and year, such as:
    - "During the filming of [Movie Name] ([Release Year]), ..."
    - "While shooting [Movie Name] ([Release Year]), ..."
    - "Behind the scenes of [Movie Name] ([Release Year]), ..."
@@ -285,10 +287,11 @@ Strictly follow this structure:
    - "Here is a surprising fact about [Movie Name] ([Release Year]): ..."
    - "Fun fact about [Movie Name] ([Release Year]): ..."
    - "A crazy secret from the set of [Movie Name] ([Release Year]): ..."
-2. Story: Describe an unscripted moment, accidental injury, actor's improvisation, or set secret in 30-40 simple words.
-3. No Double Quotes: Do NOT use any double quotes " " anywhere in the fact text. If there is a quote from the actor/director, write it as normal text (e.g. Levy said they had to push Blender to its limits).
-4. Bold Key Words: Bold the most dramatic/important keywords (especially in the statement or quote) by wrapping them in double asterisks (e.g. **accidentally**, **improvised**, **smashed**, **secret**, **idea**).
-5. Word Limit: Total length of the fact MUST be strictly between 50 to 65 words.
+   Ensure the sentence structure is casual, expressive, and human-like.
+2. Story: Describe an unscripted moment, accidental injury, actor's improvisation, set secret, or production trivia in a dramatic and natural way.
+3. Quote: Conclude the fact with a direct quote from the actor, director, or crew member enclosed in double quotes (e.g., Tom Hardy said "I wanted to do it myself, but I wasn't allowed").
+4. Bold Key Words: Bold the most dramatic/important keywords (especially in the statement or quote) by wrapping them in double asterisks (e.g. **accidentally**, **improvised**, **smashed**, **secret**, **real**).
+5. Word Limit: Total length of the fact MUST be strictly between 55 to 70 words.
 6. Emojis: Include a relevant emoji or two at the very end of the paragraph (e.g. 💀, 🍎).
 
 Movie Details to use:
@@ -298,7 +301,7 @@ Video Description: {description}
 Scene Summary: {clip_summary}
 Clip Dialogue: {clip_transcript}
 
-Output ONLY the raw fact paragraph text. Do not number it, do not add explanations, do not use double quotes " " at all, and do not add hashtags.
+Output ONLY the raw fact paragraph text. Do not number it, do not add explanations, do not use double quotes except for the direct quote at the end, and do not add hashtags.
 """
         try:
             fact_text = await run_llm(client, fact_prompt, temperature=0.7, max_tokens=250)
