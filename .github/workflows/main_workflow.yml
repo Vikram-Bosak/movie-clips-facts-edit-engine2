@@ -29,7 +29,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install System Dependencies
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg libsm6 libxext6 wget
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libsm6 libxext6 wget fonts-noto-color-emoji
 
       - name: Install Python Dependencies
         run: pip install -r requirements.txt
