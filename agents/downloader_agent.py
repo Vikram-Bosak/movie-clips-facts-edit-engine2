@@ -92,7 +92,7 @@ def _entry_url(e: dict, is_youtube: bool) -> str:
 
 async def resolve_entries(url: str):
     """Resolve a single video or playlist URL into a list of video entries."""
-    cmd = ["yt-dlp", "--js-runtimes", "node", "--remote-components", "ejs:github", "--flat-playlist", "--skip-download", "-J"] + get_cookie_flags() + [url]
+    cmd = ["yt-dlp", "--js-runtimes", "node", "--remote-components", "ejs:github", "--flat-playlist", "--playlist-end", "30", "--skip-download", "-J"] + get_cookie_flags() + [url]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -172,10 +172,12 @@ async def download_video():
 
     processed_urls = load_history()
     
-    # Simplify search query to avoid parsing issues in yt-dlp URL scheme resolver
+    # Use YouTube search URL with sp=CAI%3D parameter to get newest uploads sorted by date
+    import urllib.parse
     studios_query = "movie clip compilation"
-    search_url = f"ytsearchdate30:{studios_query}"
-    logger.info(f"Searching YouTube with query: {studios_query}")
+    encoded_query = urllib.parse.quote_plus(studios_query)
+    search_url = f"https://www.youtube.com/results?search_query={encoded_query}&sp=CAI%253D"
+    logger.info(f"Searching YouTube with query: {studios_query} (URL: {search_url})")
     
     search_results = await resolve_entries(search_url)
     if not search_results:
