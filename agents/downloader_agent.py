@@ -198,8 +198,8 @@ async def download_video():
             skipped_already_processed.append(video)
             continue
             
-        # Check if uploader belongs to a major Hollywood studio
-        studios = ["warner", "universal", "sony", "paramount", "disney", "marvel", "20th century", "lionsgate", "movieclips", "binge society"]
+        # Check if uploader belongs to the allowed Hollywood clip channels
+        studios = ["movieclips", "joblo", "filmisnow", "kinocheck"]
         channel_name = (video.get("channel") or "").lower()
         if not any(s in channel_name for s in studios):
             continue
