@@ -250,8 +250,12 @@ async def download_video():
         logger.info(f"Priority 3: No daily clips found. Using {len(other_candidates)} recent clips.")
         
     if not candidates:
-        logger.error("No unprocessed videos found matching search results.")
-        sys.exit(1)
+        if skipped_already_processed:
+            logger.info("All search results were already processed. Falling back to already processed videos to avoid run failure...")
+            candidates = skipped_already_processed
+        else:
+            logger.error("No unprocessed videos found matching search results.")
+            sys.exit(1)
 
     os.makedirs("downloads", exist_ok=True)
     video_id = str(uuid.uuid4())
