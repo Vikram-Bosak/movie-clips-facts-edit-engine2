@@ -156,7 +156,7 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
         reaction_region = cfg["reaction_character"]["region"]
         rw, rh = int(reaction_region["width"]), int(reaction_region["height"])
         rx, ry = int(reaction_region["x"]), int(reaction_region["y"])
-        parts.append(f"[{reaction_input_idx}:v]crop=608:1080:656:0,scale={rw}:{rh}:force_original_aspect_ratio=increase,crop={rw}:{rh},chromakey=0x00FF00:0.25:0.03,setpts=PTS-STARTPTS[react]")
+        parts.append(f"[{reaction_input_idx}:v]crop=608:1080:656:0,scale={rw}:{rh}:force_original_aspect_ratio=increase,crop={rw}:{rh},chromakey=0x2E794B:0.32:0.04,setpts=PTS-STARTPTS[react]")
         parts.append(f"[{cur_label}][react]overlay={rx}:{ry}:shortest=1[outv]")
         video_label = "outv"
     else:
