@@ -196,6 +196,8 @@ async def edit_video():
             import shutil
             import hashlib
             rx_dir = r"C:\Users\admin\Documents\reaction charactor"
+            if not os.path.exists(rx_dir):
+                rx_dir = os.path.join(ASSETS_DIR, "reaction_characters")
             if os.path.exists(rx_dir) and not os.environ.get("BATCH_TEST"):
                 files = [os.path.join(rx_dir, f) for f in os.listdir(rx_dir) if f.endswith(".mp4")]
                 if files:
