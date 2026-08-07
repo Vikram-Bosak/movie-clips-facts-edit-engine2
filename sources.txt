@@ -1,6 +1,6 @@
-# Marvel & DC Hollywood Movie Clips sources for the downloader agent.
-https://www.youtube.com/watch?v=UaVTIH8lhTo
-https://www.youtube.com/watch?v=EXeTwQWrcwY
-https://www.youtube.com/watch?v=kYJv8Psc7L4
-https://www.youtube.com/watch?v=kE-3f1_323k
-https://www.youtube.com/watch?v=t_1wWJ-HhW0
+# Stable Marvel & DC Trailer/Clip sources for the downloader agent.
+https://www.youtube.com/watch?v=TcMBFSGVi1c
+https://www.youtube.com/watch?v=QwievZ1Tx-8
+https://www.youtube.com/watch?v=mqqft2x_Aa4
+https://www.youtube.com/watch?v=vM-Bja2Gy04
+https://www.youtube.com/watch?v=JfVOs4VSpmA
