@@ -74,17 +74,36 @@ async def upload_video():
         timeout=15.0
     )
     
-    prompt = f"""Generate a short 3-5 word snake_case filename in lowercase for this video.
-Do not include any explanation, intro, or extra text. Output ONLY the raw filename.
+    # 1. Get the facts text from memory and extract first 10 words for Title and Filename
+    fact_text = memory.fact_text or ""
+    words = [w.strip().lower() for w in fact_text.split() if w.strip()]
+    first_10_words = words[:10]
+    
+    raw_title = " ".join(first_10_words)
+    res = "".join(c if c.isalnum() or c == " " else "" for c in raw_title).strip()
+    res = "_".join(res.split())
+    
+    if not res:
+        res = f"{video_id}_final"
+        
+    clean_filename = f"{res}.mp4"
+    logger.info(f"Generated title and filename from first 10 words of facts: {clean_filename}")
 
-Video details:
+    # Generate SEO Details based on the filename/title using LLM
+    prompt = f"""Generate Search Engine Optimization (SEO) details for a movie facts video.
+The video title and filename is: "{res.replace('_', ' ')}"
+Video clip details:
 Summary: {memory.summary}
 Transcript: {memory.transcript}
 
-Example: "funny_cat_slip", "crazy_bike_crash", "epic_skateboard_fail"
+Your output MUST be a JSON object containing exactly three keys:
+1. "description": A highly engaging YouTube description (approx 150-200 words) using keywords related to the title.
+2. "keywords": A list of 10 relevant keywords.
+3. "tags": A comma-separated string of 10 relevant tags.
+
+Output ONLY the raw JSON. Do not include any markdown format blocks or introductory text.
 """
     
-    clean_filename = f"{video_id}_final.mp4"
     try:
         def query_llm():
             completion = client.chat.completions.create(
@@ -92,27 +111,30 @@ Example: "funny_cat_slip", "crazy_bike_crash", "epic_skateboard_fail"
               messages=[
                   {"role": "user", "content": prompt}
               ],
-              temperature=0.1,
-              max_tokens=30,
+              temperature=0.3,
+              max_tokens=400,
               stream=False
             )
-            return completion.choices[0].message.content.strip().lower()
-        res = await asyncio.to_thread(query_llm)
-        # Clean response to ensure it is valid snake_case filename
-        res = "".join(c if c.isalnum() or c == "_" else "" for c in res.replace(" ", "_"))
-        res = res.strip("_")
+            return completion.choices[0].message.content.strip()
         
-        # Programmatic guardrail: limit to maximum 6 words
-        words = [w for w in res.split("_") if w]
-        if len(words) > 6:
-            words = words[:5]
-        res = "_".join(words)
+        seo_response = await asyncio.to_thread(query_llm)
+        if seo_response.startswith("```json"):
+            seo_response = seo_response[7:]
+        if seo_response.endswith("```"):
+            seo_response = seo_response[:-3]
+        seo_response = seo_response.strip()
         
-        if res:
-            clean_filename = f"{res}.mp4"
-            logger.info(f"Generated SEO filename: {clean_filename}")
+        seo_data = json.loads(seo_response)
+        
+        await async_update_memory(video_id, {
+            "youtube_title": res.replace('_', ' ').title(),
+            "youtube_description": seo_data.get("description", ""),
+            "youtube_keywords": ", ".join(seo_data.get("keywords", [])) if isinstance(seo_data.get("keywords"), list) else str(seo_data.get("keywords")),
+            "youtube_tags": seo_data.get("tags", "")
+        })
+        logger.info("Successfully updated database memory with SEO Title, Description, Keywords, and Tags.")
     except Exception as e:
-        logger.warning(f"Failed to generate SEO filename, using default: {e}")
+        logger.warning(f"Failed to generate SEO details, using default: {e}")
         
     # Rename local file to match the new filename
     new_video_path = os.path.join(os.path.dirname(final_video), clean_filename)

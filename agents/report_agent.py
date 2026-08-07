@@ -111,7 +111,11 @@ async def send_report():
                 "value": f"**Summary:** {summary}\n**Clip Transcript:**\n```\n{transcript}\n```"
             },
             {
-                "name": "⚙️ 6. Metrics & GitHub",
+                "name": "🔍 6. YouTube SEO Metadata",
+                "value": f"**SEO Title:** {memory.youtube_title or 'N/A'}\n**Description:** {truncate_str(memory.youtube_description, 200)}\n**Keywords:** {truncate_str(memory.youtube_keywords, 150)}\n**Tags:** {truncate_str(memory.youtube_tags, 150)}"
+            },
+            {
+                "name": "⚙️ 7. Metrics & GitHub",
                 "value": f"**Time:** {duration_str}\n**Run:** [GitHub Action Run]({memory.github_run_url or 'https://github.com'})" + (f"\n**Drive Link:** [Google Drive Link]({drive_url})" if drive_url else "")
             }
         ],
