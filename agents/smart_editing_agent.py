@@ -129,7 +129,7 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
     arrow_w, arrow_h = 80, 80
     ax = cx + int((arrow_x or 0.5) * cw) - (arrow_w // 2)
     ay = cy + int((arrow_y or 0.5) * ch) - arrow_h - 15
-    bounce_expression = f"{ay} - 15 + 15*sin(2*pi*t/0.8)"
+    bounce_expression = f"({ay}) - 15 + 15*sin(6.28318*t/0.8)"
     
     parts.append(f"[{arrow_input_idx}:v]scale={arrow_w}:{arrow_h}[arrow_scaled]")
     parts.append(f"[{cur_label}][arrow_scaled]overlay={ax}:{bounce_expression}:shortest=1[{cur_label}_arrow]")
