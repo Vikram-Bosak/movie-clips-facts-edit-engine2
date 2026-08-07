@@ -14,6 +14,17 @@ load_dotenv()
 
 def get_oauth_credentials():
     scopes = ['https://www.googleapis.com/auth/drive']
+    
+    # 1. Google Drive Service Account Fallback
+    if os.path.exists("service_account.json"):
+        logger.info("Loading Google Drive Service Account credentials from service_account.json...")
+        try:
+            from google.oauth2 import service_account
+            creds = service_account.Credentials.from_service_account_file("service_account.json", scopes=scopes)
+            return creds
+        except Exception as e:
+            logger.error(f"Failed to load service_account.json: {e}")
+
     token_str = os.environ.get("GDRIVE_OAUTH_TOKEN")
     
     if token_str:

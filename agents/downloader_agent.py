@@ -157,10 +157,13 @@ async def download_video():
         sys.exit(1)
 
     candidates = []
+    skipped_already_processed = []
     for src in sources:
         for entry in await resolve_entries(src):
             if entry["url"] not in processed_urls:
                 candidates.append(entry)
+            else:
+                skipped_already_processed.append(entry)
 
     if not candidates:
         logger.error("No new un-processed videos found in sources.")
@@ -170,6 +173,7 @@ async def download_video():
     video_id = str(uuid.uuid4())
     output_path = f"downloads/{video_id}.mp4"
 
+    failed_downloads = []
     for video in candidates:
         target_url = video["url"]
         logger.info(f"Attempting to download {target_url} - {video.get('title')}")
@@ -199,6 +203,12 @@ async def download_video():
                 metadata = await fetch_full_metadata(target_url)
                 logger.info(f"Metadata: title='{metadata.get('title')}', channel='{metadata.get('uploader')}', duration={metadata.get('duration')}s")
 
+                run_metrics = {
+                    "downloaded": [{"url": target_url, "title": metadata.get("title") or video.get("title") or "Untitled"}],
+                    "skipped": [{"url": x["url"], "title": x.get("title") or "Untitled", "reason": "Already processed in history"} for x in skipped_already_processed],
+                    "failed": failed_downloads
+                }
+
                 await async_update_memory(video_id, {
                     "source_url": target_url,
                     "youtube_title": metadata.get("title") or video.get("title") or "Untitled",
@@ -207,17 +217,21 @@ async def download_video():
                     "source_duration": float(metadata.get("duration") or video.get("duration") or 0),
                     "local_video_path": output_path,
                     "start_time": datetime.now(timezone.utc).isoformat(),
+                    "downloader_logs": json.dumps(run_metrics),
                     "github_repository": os.environ.get("GITHUB_REPOSITORY"),
                     "github_run_id": os.environ.get("GITHUB_RUN_ID"),
                     "github_run_url": f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ.get('GITHUB_RUN_ID')}" if os.environ.get("GITHUB_RUN_ID") else None
                 })
                 return
             else:
-                logger.warning(f"yt-dlp failed for {target_url}. Trying next video...")
+                err_msg = stderr.decode()[:200] or "Unknown download error"
+                logger.warning(f"yt-dlp failed for {target_url}: {err_msg}. Trying next video...")
+                failed_downloads.append({"url": target_url, "title": video.get("title") or "Untitled", "reason": f"yt-dlp failed: {err_msg}"})
                 if os.path.exists(output_path):
                     os.remove(output_path)
         except Exception as e:
             logger.warning(f"Error executing yt-dlp: {e}")
+            failed_downloads.append({"url": target_url, "title": video.get("title") or "Untitled", "reason": f"Exception: {e}"})
 
     logger.error("Failed to download any movie clip.")
     sys.exit(1)

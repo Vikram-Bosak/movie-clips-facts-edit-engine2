@@ -46,6 +46,13 @@ jobs:
       - name: Run Smart Editing Agent
         run: python agents/smart_editing_agent.py
 
+      # Upload Agent (Google Drive)
+      - name: Run Upload Agent
+        env:
+          GDRIVE_OAUTH_TOKEN: ${{ secrets.GDRIVE_OAUTH_TOKEN }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: python agents/upload_agent.py
+
       # Report Agent
       - name: Run Report Agent
         if: always()

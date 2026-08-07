@@ -16,7 +16,10 @@ python3 agents/video_analysis_agent.py || { echo "Analysis failed"; exit 1; }
 echo "[3/4] Running Smart Editing Agent (compose Shorts with space bg + facts + profile + reaction)..."
 python3 agents/smart_editing_agent.py || { echo "Smart Editing failed"; exit 1; }
 
-echo "[4/4] Running Report Agent..."
+echo "[4/5] Running Google Drive Upload Agent..."
+python3 agents/upload_agent.py || { echo "Upload failed"; exit 1; }
+
+echo "[5/5] Running Report Agent..."
 python3 agents/report_agent.py || { echo "Report failed"; exit 1; }
 
 echo "=========================================="

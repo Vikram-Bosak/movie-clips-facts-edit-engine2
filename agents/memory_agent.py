@@ -94,7 +94,7 @@ def init_db():
         "youtube_title TEXT", "youtube_description TEXT", "youtube_channel TEXT",
         "source_duration REAL", "clip_start REAL", "clip_duration REAL",
         "clip_path TEXT", "clip_transcript TEXT", "clip_scene_analysis TEXT",
-        "fact_text TEXT",
+        "fact_text TEXT", "downloader_logs TEXT",
     ]:
         try:
             c.execute(f"ALTER TABLE memory ADD COLUMN {col}")
