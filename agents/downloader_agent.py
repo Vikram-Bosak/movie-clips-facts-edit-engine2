@@ -172,8 +172,8 @@ async def download_video():
 
     processed_urls = load_history()
     
-    # Major Hollywood Studios Search Query
-    studios_query = '"movie clip" (Warner OR Universal OR Sony OR Paramount OR Disney OR Marvel OR Lionsgate)'
+    # Simplify search query to avoid parsing issues in yt-dlp URL scheme resolver
+    studios_query = "movie clip compilation"
     search_url = f"ytsearchdate30:{studios_query}"
     logger.info(f"Searching YouTube with query: {studios_query}")
     
@@ -189,12 +189,17 @@ async def download_video():
     daily_candidates = []
     other_candidates = []
     skipped_already_processed = []
-    skipped_not_recent = []
     
     for video in search_results:
         target_url = video["url"]
         if target_url in processed_urls:
             skipped_already_processed.append(video)
+            continue
+            
+        # Check if uploader belongs to a major Hollywood studio
+        studios = ["warner", "universal", "sony", "paramount", "disney", "marvel", "20th century", "lionsgate", "movieclips", "binge society"]
+        channel_name = (video.get("channel") or "").lower()
+        if not any(s in channel_name for s in studios):
             continue
             
         # Filter by duration under 240s (aligns with reference match-filter)
