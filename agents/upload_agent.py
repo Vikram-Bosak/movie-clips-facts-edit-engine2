@@ -33,7 +33,7 @@ def get_oauth_credentials():
             token_data = json.loads(token_str)
             creds = Credentials.from_authorized_user_info(token_data, scopes)
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request(timeout=10.0))
+                creds.refresh(Request())
             return creds
         except Exception as e:
             logger.error(f"Failed to parse GDRIVE_OAUTH_TOKEN: {e}")
@@ -44,7 +44,7 @@ def get_oauth_credentials():
         try:
             creds = Credentials.from_authorized_user_file("token.json", scopes)
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request(timeout=10.0))
+                creds.refresh(Request())
             return creds
         except Exception as e:
             logger.error(f"Failed to load token.json: {e}")
