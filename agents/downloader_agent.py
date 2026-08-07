@@ -197,6 +197,11 @@ async def download_video():
             skipped_already_processed.append(video)
             continue
             
+        # Filter by duration under 240s (aligns with reference match-filter)
+        dur = video.get("duration")
+        if dur and float(dur) > 240:
+            continue
+            
         # Check if hourly (last 1 hour)
         is_hourly = False
         ts = video.get("timestamp")
@@ -252,8 +257,10 @@ async def download_video():
 
         command = [
             "yt-dlp",
+            "--no-check-certificates",
             "--js-runtimes", "node",
             "--remote-components", "ejs:github",
+            "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
             "--output", output_path,
             "--merge-output-format", "mp4",
             "--quiet",
