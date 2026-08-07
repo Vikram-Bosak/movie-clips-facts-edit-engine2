@@ -13,7 +13,8 @@ from openai import OpenAI
 
 from memory_agent import async_get_latest_video_id, async_get_memory, async_update_memory
 
-CLIP_TARGET_DURATION = 7.0
+import random
+CLIP_TARGET_DURATION = float(random.randint(4, 10))
 CLIP_MAX_DURATION = 10.0
 
 
@@ -101,7 +102,7 @@ async def analyze_video():
             logger.info("Video longer than 7s. Requesting AI to find the most engaging clip...")
             select_prompt = f"""
 You are an expert social media video editor for YouTube Shorts.
-Select the single most engaging, visually exciting, or viral ~7 second continuous portion of this movie clip.
+Select the single most engaging, visually exciting, or viral ~{int(CLIP_TARGET_DURATION)} second continuous portion of this movie clip.
 It must be the part that grabs attention instantly (action peak, surprising moment, iconic dialogue, dramatic twist).
 
 Total Video Duration: {video_duration:.2f} seconds
@@ -117,10 +118,10 @@ Transcript with Timestamps:
 {raw_transcript[:2500]}
 
 Return ONLY a valid JSON object with keys "start_time" and "duration" (seconds as floats).
-The duration MUST be between 5 and {CLIP_MAX_DURATION} seconds (target ~{CLIP_TARGET_DURATION}s).
+The duration MUST be between 4.0 and {CLIP_MAX_DURATION} seconds (target ~{CLIP_TARGET_DURATION}s).
 Also make sure start_time + duration <= total video duration.
 Example response:
-{{"start_time": 12.5, "duration": 7.0}}
+{{"start_time": 12.5, "duration": {CLIP_TARGET_DURATION}}}
 Do not output any explanation or extra text.
 """
             try:
@@ -133,10 +134,10 @@ Do not output any explanation or extra text.
 
                 if clip_start < 0 or clip_start >= video_duration:
                     clip_start = 0.0
-                if clip_duration < 5.0 or clip_duration > CLIP_MAX_DURATION:
+                if clip_duration < 4.0 or clip_duration > CLIP_MAX_DURATION:
                     clip_duration = CLIP_TARGET_DURATION
                 if clip_start + clip_duration > video_duration:
-                    clip_duration = max(5.0, video_duration - clip_start)
+                    clip_duration = max(4.0, video_duration - clip_start)
             except Exception as e:
                 logger.warning(f"Failed to parse AI clip selection, defaulting to first {CLIP_TARGET_DURATION}s: {e}")
                 clip_start = 0.0
