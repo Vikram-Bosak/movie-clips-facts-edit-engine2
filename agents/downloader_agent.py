@@ -124,6 +124,8 @@ async def resolve_entries(url: str):
                 "title": e.get("title"),
                 "channel": e.get("uploader") or e.get("channel"),
                 "duration": e.get("duration"),
+                "upload_date": e.get("upload_date"),
+                "timestamp": e.get("timestamp"),
             })
         logger.info(f"Resolved playlist '{data.get('title')}' with {len(resolved)} videos.")
         return resolved
@@ -141,6 +143,8 @@ async def resolve_entries(url: str):
         "title": data.get("title"),
         "channel": data.get("uploader") or data.get("channel"),
         "duration": data.get("duration"),
+        "upload_date": data.get("upload_date"),
+        "timestamp": data.get("timestamp"),
     }]
 
 
@@ -167,22 +171,74 @@ async def download_video():
     logger.info("Starting YouTube Movie Clip Downloader...")
 
     processed_urls = load_history()
-    sources = load_sources()
-    if not sources:
-        logger.error(f"No sources found in {SOURCES_FILE}. Add YouTube video/playlist URLs.")
+    
+    # Major Hollywood Studios Search Query
+    studios_query = '"movie clip" (Warner OR Universal OR Sony OR Paramount OR Disney OR Marvel OR Lionsgate)'
+    search_url = f"ytsearchdate30:{studios_query}"
+    logger.info(f"Searching YouTube with query: {studios_query}")
+    
+    search_results = await resolve_entries(search_url)
+    if not search_results:
+        logger.error("No search results returned from YouTube.")
         sys.exit(1)
-
-    candidates = []
+        
+    now = datetime.now(timezone.utc)
+    from datetime import timedelta
+    
+    hourly_candidates = []
+    daily_candidates = []
+    other_candidates = []
     skipped_already_processed = []
-    for src in sources:
-        for entry in await resolve_entries(src):
-            if entry["url"] not in processed_urls:
-                candidates.append(entry)
-            else:
-                skipped_already_processed.append(entry)
-
+    skipped_not_recent = []
+    
+    for video in search_results:
+        target_url = video["url"]
+        if target_url in processed_urls:
+            skipped_already_processed.append(video)
+            continue
+            
+        # Check if hourly (last 1 hour)
+        is_hourly = False
+        ts = video.get("timestamp")
+        if ts:
+            try:
+                dt = datetime.fromtimestamp(ts, timezone.utc)
+                if now - dt <= timedelta(hours=1):
+                    is_hourly = True
+            except Exception:
+                pass
+                
+        # Check if daily (today)
+        is_daily = False
+        ud = video.get("upload_date")
+        if ud:
+            try:
+                dt = datetime.strptime(ud, "%Y%m%d").replace(tzinfo=timezone.utc)
+                if dt.date() == now.date():
+                    is_daily = True
+            except Exception:
+                pass
+                
+        if is_hourly:
+            hourly_candidates.append(video)
+        elif is_daily:
+            daily_candidates.append(video)
+        else:
+            other_candidates.append(video)
+            
+    # Priority Selection
+    if hourly_candidates:
+        candidates = hourly_candidates
+        logger.info(f"Priority 1: Found {len(hourly_candidates)} clips uploaded in the last hour.")
+    elif daily_candidates:
+        candidates = daily_candidates
+        logger.info(f"Priority 2: No hourly clips found. Found {len(daily_candidates)} clips uploaded today.")
+    else:
+        candidates = other_candidates
+        logger.info(f"Priority 3: No daily clips found. Using {len(other_candidates)} recent clips.")
+        
     if not candidates:
-        logger.error("No new un-processed videos found in sources.")
+        logger.error("No unprocessed videos found matching search results.")
         sys.exit(1)
 
     os.makedirs("downloads", exist_ok=True)
