@@ -193,11 +193,25 @@ async def edit_video():
         reaction_path = None
         reaction_cfg = cfg.get("reaction_character", {})
         if reaction_cfg.get("enabled", True):
-            candidate = reaction_cfg.get("asset", f"{ASSETS_DIR}/reaction.mp4")
-            if os.path.exists(candidate):
-                reaction_path = candidate
-            else:
-                logger.warning(f"Reaction character video not found at {candidate}. Skipping (will be added later).")
+            import shutil
+            import hashlib
+            rx_dir = r"C:\Users\admin\Documents\reaction charactor"
+            if os.path.exists(rx_dir):
+                files = [os.path.join(rx_dir, f) for f in os.listdir(rx_dir) if f.endswith(".mp4")]
+                if files:
+                    idx = int(hashlib.md5(video_id.encode('utf-8')).hexdigest(), 16) % len(files)
+                    selected_rx = files[idx]
+                    logger.info(f"Selected reaction character dynamically: {selected_rx}")
+                    os.makedirs(ASSETS_DIR, exist_ok=True)
+                    shutil.copy(selected_rx, f"{ASSETS_DIR}/reaction.mp4")
+                    reaction_path = f"{ASSETS_DIR}/reaction.mp4"
+
+            if not reaction_path:
+                candidate = reaction_cfg.get("asset", f"{ASSETS_DIR}/reaction.mp4")
+                if os.path.exists(candidate):
+                    reaction_path = candidate
+                else:
+                    logger.warning(f"Reaction character video not found at {candidate}. Skipping (will be added later).")
 
         # Adaptive layout: without a reaction video, we keep layout clean
         if not reaction_path:
