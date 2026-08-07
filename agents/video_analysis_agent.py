@@ -275,19 +275,7 @@ Generate 1 behind-the-scenes (BTS) fact or production secret for the movie/TV sh
 Write in a highly engaging, casual, opinionated, and conversational fan tone. It should feel like a real human fan sharing movie trivia, not a template-driven AI bot.
 
 Strictly follow this structure:
-1. Hook & Sentence Structure: Start with a natural, diverse, and unique opening phrase mentioning the movie and year, such as:
-   - "During the filming of [Movie Name] ([Release Year]), ..."
-   - "While shooting [Movie Name] ([Release Year]), ..."
-   - "Behind the scenes of [Movie Name] ([Release Year]), ..."
-   - "Did you know that in [Movie Name] ([Release Year]), ..."
-   - "A little-known fact about [Movie Name] ([Release Year]) is that ..."
-   - "The director of [Movie Name] ([Release Year]) revealed that ..."
-   - "One hidden detail in [Movie Name] ([Release Year]) is ..."
-   - "Most people missed this detail in [Movie Name] ([Release Year]): ..."
-   - "Here is a surprising fact about [Movie Name] ([Release Year]): ..."
-   - "Fun fact about [Movie Name] ([Release Year]): ..."
-   - "A crazy secret from the set of [Movie Name] ([Release Year]): ..."
-   Ensure the sentence structure is casual, expressive, and human-like.
+1. Hook & Sentence Structure: Start the fact with a completely custom, spontaneous, and conversational opening sentence about the scene, movie, or actor. Mention the movie title and release year naturally within this first sentence. Do NOT use any pre-defined template prefixes (like 'Behind the scenes', 'When filming', 'Did you know', etc.) repeatedly. Write the opening sentence structure in a completely unique, natural, and expressive way for each run, avoiding repetitive phrases.
 2. Story: Describe an unscripted moment, accidental injury, actor's improvisation, set secret, or production trivia in a dramatic and natural way.
 3. Quote: Conclude the fact with a direct quote from the actor, director, or crew member enclosed in double quotes (e.g., Tom Hardy said "I wanted to do it myself, but I wasn't allowed").
 4. Bold Key Words: Bold the most dramatic/important keywords (especially in the statement or quote) by wrapping them in double asterisks (e.g. **accidentally**, **improvised**, **smashed**, **secret**, **real**).
