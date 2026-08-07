@@ -1,6 +1,2 @@
 # Movie clip sources for the downloader agent.
-# Add one video/playlist URL per line. Lines starting with # are ignored.
-# The downloader picks videos that have not been processed yet (see history.txt).
-
-# Sample movie clip (Blender Foundation open movie, CC-BY) for pipeline testing.
-https://archive.org/details/BigBuckBunny_124
+https://archive.org/details/Sintel

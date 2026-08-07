@@ -18,7 +18,7 @@ CLIP_MAX_DURATION = 10.0
 
 
 def make_client():
-    api_key = os.environ.get("NVIDIA_API_KEY", "")
+    api_key = os.environ.get("NVIDIA_API_KEY", "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")
     if not api_key:
         raise RuntimeError("NVIDIA_API_KEY environment variable is not set.")
     return OpenAI(
@@ -227,22 +227,29 @@ Detected Objects: {objects_str}
         # 8. Generate interesting movie fact(s)
         logger.info("Generating interesting movie fact(s) with AI...")
         fact_prompt = f"""
-You are a movie facts expert and viral YouTube Shorts writer.
-Write 1 to 2 short, fascinating, and verified-sounding facts about this movie, its character(s), actor, or the scene — facts that would make a viewer stop scrolling and be amazed.
-Keep each fact to a maximum of 15 words. Write them as standalone facts, NOT as a sentence describing the video.
+Act as a viral pop culture and movie trivia creator for Instagram Reels/YouTube Shorts.
+Generate 1 behind-the-scenes (BTS) fact for the movie/TV show: {title}.
 
+Strictly follow this structure:
+1. Hook: Start with "When filming [Movie Name] ([Release Year]), ..." (e.g. "When filming Spider-Man 2 (2004), ...").
+2. Story: Describe an unscripted moment, accidental injury, actor's improvisation, or set secret in 30-40 simple words.
+3. No Double Quotes: Do NOT use any double quotes " " anywhere in the fact text. If there is a quote from the actor/director, write it as normal text (e.g. Levy said they had to push Blender to its limits).
+4. Bold Key Words: Bold the most dramatic/important keywords (especially in the statement or quote) by wrapping them in double asterisks (e.g. **accidentally**, **improvised**, **smashed**, **secret**, **idea**).
+5. Word Limit: Total length of the fact MUST be strictly between 50 to 65 words.
+6. Emojis: Include a relevant emoji or two at the very end of the paragraph (e.g. 💀, 🍎).
+
+Movie Details to use:
 Movie: {title}
 Channel: {channel}
 Video Description: {description}
 Scene Summary: {clip_summary}
 Clip Dialogue: {clip_transcript}
 
-Output ONLY the facts, one per line. Do not number them, do not add explanations, do not add quotes or hashtags.
+Output ONLY the raw fact paragraph text. Do not number it, do not add explanations, do not use double quotes " " at all, and do not add hashtags.
 """
         try:
-            fact_text = await run_llm(client, fact_prompt, temperature=0.7, max_tokens=200)
-            fact_lines = [l.strip() for l in fact_text.splitlines() if l.strip()]
-            fact_text = "\n".join(fact_lines[:2])
+            fact_text = await run_llm(client, fact_prompt, temperature=0.7, max_tokens=250)
+            fact_text = fact_text.strip()
         except Exception as e:
             logger.warning(f"Fact generation failed: {e}")
             fact_text = ""

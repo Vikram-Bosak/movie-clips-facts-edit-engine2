@@ -49,6 +49,7 @@ async def send_report():
     source_url = memory.source_url or 'N/A'
     clip_start = memory.clip_start if memory.clip_start is not None else 0.0
     clip_duration = memory.clip_duration if memory.clip_duration is not None else 0.0
+    drive_url = memory.google_drive_public_url or ''
 
     has_failed = memory.error is not None and memory.error != ""
     if has_failed:
@@ -83,7 +84,7 @@ async def send_report():
             },
             {
                 "name": "⚙️ 5. Metrics & GitHub",
-                "value": f"**Time:** {duration_str}\n**Run:** [GitHub Action Run]({memory.github_run_url or 'https://github.com'})"
+                "value": f"**Time:** {duration_str}\n**Run:** [GitHub Action Run]({memory.github_run_url or 'https://github.com'})" + (f"\n**Drive Link:** [Google Drive Link]({drive_url})" if drive_url else "")
             }
         ],
         "timestamp": datetime.utcnow().isoformat() + "Z",

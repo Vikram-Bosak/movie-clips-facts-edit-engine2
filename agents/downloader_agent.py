@@ -31,15 +31,17 @@ def save_history(url: str):
         subprocess.run(["git", "add", HISTORY_FILE], check=True)
         subprocess.run(["git", "commit", "-m", f"Track processed video: {url}"], check=True)
 
-        pat = os.environ.get("GH_TOKEN")
-        if pat:
-            repo = os.environ.get("GITHUB_REPOSITORY", "Vikram-Bosak/movie-clips-facts-edit-engine2")
-            push_url = f"https://{pat}@github.com/{repo}.git"
-            subprocess.run(["git", "push", push_url, "main"], check=True)
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            pat = os.environ.get("GH_TOKEN")
+            if pat:
+                repo = os.environ.get("GITHUB_REPOSITORY", "Vikram-Bosak/movie-clips-facts-edit-engine2")
+                push_url = f"https://{pat}@github.com/{repo}.git"
+                subprocess.run(["git", "push", push_url, "main"], check=True)
+            else:
+                subprocess.run(["git", "push", "origin", "main"], check=True)
+            logger.info(f"Successfully committed and pushed {HISTORY_FILE} updates.")
         else:
-            subprocess.run(["git", "push", "origin", "main"], check=True)
-
-        logger.info(f"Successfully committed and pushed {HISTORY_FILE} updates.")
+            logger.info(f"Successfully committed {HISTORY_FILE} locally. Skipping git push in non-CI environment.")
     except Exception as e:
         logger.warning(f"Git commit/push for history tracking failed: {e}")
 
@@ -74,7 +76,7 @@ def _entry_url(e: dict, is_youtube: bool) -> str:
 
 async def resolve_entries(url: str):
     """Resolve a single video or playlist URL into a list of video entries."""
-    cmd = ["yt-dlp", "--flat-playlist", "--skip-download", "-J", url]
+    cmd = ["yt-dlp", "--js-runtimes", "node", "--flat-playlist", "--skip-download", "-J", url]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -128,7 +130,7 @@ async def resolve_entries(url: str):
 
 async def fetch_full_metadata(video_url: str):
     """Fetch full metadata (title, description, channel, duration) for a video."""
-    cmd = ["yt-dlp", "--skip-download", "-J", video_url]
+    cmd = ["yt-dlp", "--js-runtimes", "node", "--skip-download", "-J", video_url]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -174,6 +176,7 @@ async def download_video():
 
         command = [
             "yt-dlp",
+            "--js-runtimes", "node",
             "--output", output_path,
             "--merge-output-format", "mp4",
             "--quiet",

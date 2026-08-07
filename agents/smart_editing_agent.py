@@ -26,24 +26,22 @@ def load_config():
 
 def ensure_background(cfg):
     bg = cfg.get("background", {})
-    asset = bg.get("asset", f"{ASSETS_DIR}/background_space.mp4")
+    asset = bg.get("asset", f"{ASSETS_DIR}/background_gradient.mp4")
     if os.path.exists(asset):
         return asset
     if not bg.get("auto_generate", True):
         raise FileNotFoundError(f"Background asset not found: {asset}")
-    starfield_png = bg.get("starfield_png", f"{ASSETS_DIR}/starfield.png")
-    if not os.path.exists(starfield_png):
-        generate_starfield_png(starfield_png)
     canvas = cfg.get("canvas", {"width": 720, "height": 1280, "fps": 30})
     duration = int(bg.get("generate_duration", 30))
-    logger.info(f"Generating space background video: {asset} ({duration}s)")
+    logger.info(f"Generating background video: {asset} ({duration}s)")
     generate_background_video(
         asset,
         canvas_w=int(canvas["width"]),
         canvas_h=int(canvas["height"]),
         fps=int(canvas.get("fps", 30)),
         duration=duration,
-        starfield_png=starfield_png,
+        top_color=bg.get("bg_color_top", "#F5EFEB"),
+        bottom_color=bg.get("bg_color_bottom", "#E5D9D3")
     )
     return asset
 
@@ -80,9 +78,9 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
     cw, ch = int(clip_region["width"]), int(clip_region["height"])
     cx, cy = int(clip_region["x"]), int(clip_region["y"])
 
-    profile_region = cfg["profile_section"]["region"]
-    pw, ph = int(profile_region["width"]), int(profile_region["height"])
-    px, py = int(profile_region["x"]), int(profile_region["y"])
+    card_region = cfg.get("card", {"x": 40, "y": 80, "width": 640, "height": 760})
+    pw, ph = int(card_region["width"]), int(card_region["height"])
+    px, py = int(card_region["x"]), int(card_region["y"])
 
     cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error"]
 
@@ -105,21 +103,25 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
     parts = []
     parts.append(f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setpts=PTS-STARTPTS,format=yuv420p[bg]")
     parts.append(f"[1:v]scale={cw}:{ch}:force_original_aspect_ratio=increase,crop={cw}:{ch},setpts=PTS-STARTPTS[clip]")
-    parts.append(f"[bg][clip]overlay={cx}:{cy}[bgc]")
-
-    cur_label = "bgc"
-    if fact_png:
-        parts.append(f"[{cur_label}][2:v]overlay=0:0[bgcf]")
-        cur_label = "bgcf"
+    
+    # 1. Overlay profile/card png onto background
     profile_input_idx = 3 if fact_png else 2
-    parts.append(f"[{cur_label}][{profile_input_idx}:v]overlay={px}:{py}[bgcfp]")
-    cur_label = "bgcfp"
+    parts.append(f"[bg][{profile_input_idx}:v]overlay={px}:{py}[bgp]")
+    
+    # 2. Overlay clip onto card background
+    parts.append(f"[bgp][clip]overlay={cx}:{cy}[bgpc]")
+    cur_label = "bgpc"
+
+    # 3. Overlay fact text on top of everything inside the card
+    if fact_png:
+        parts.append(f"[{cur_label}][2:v]overlay=0:0[bgpcf]")
+        cur_label = "bgpcf"
 
     if reaction_path:
         reaction_region = cfg["reaction_character"]["region"]
         rw, rh = int(reaction_region["width"]), int(reaction_region["height"])
         rx, ry = int(reaction_region["x"]), int(reaction_region["y"])
-        parts.append(f"[{reaction_input_idx}:v]scale={rw}:{rh}:force_original_aspect_ratio=increase,crop={rw}:{rh},setpts=PTS-STARTPTS[react]")
+        parts.append(f"[{reaction_input_idx}:v]crop=608:1080:656:0,scale={rw}:{rh}:force_original_aspect_ratio=increase,crop={rw}:{rh},chromakey=0x00FF00:0.3:0.1,setpts=PTS-STARTPTS[react]")
         parts.append(f"[{cur_label}][react]overlay={rx}:{ry}:shortest=1[outv]")
         video_label = "outv"
     else:
@@ -178,7 +180,7 @@ async def edit_video():
         logger.error(f"Clip path {clip_path} not found in memory.")
         sys.exit(1)
 
-    logger.info("Composing final Shorts video (space background + clip + facts + profile + reaction)...")
+    logger.info("Composing final Shorts video (gradient background + clip + facts + profile + reaction)...")
 
     cfg = load_config()
     canvas = cfg["canvas"]
@@ -197,16 +199,9 @@ async def edit_video():
             else:
                 logger.warning(f"Reaction character video not found at {candidate}. Skipping (will be added later).")
 
-        # Adaptive layout: without a reaction video, extend the clip to fill the
-        # reaction band and move the profile section to the bottom of the frame.
+        # Adaptive layout: without a reaction video, we keep layout clean
         if not reaction_path:
-            react_region = reaction_cfg.get("region", {})
-            boundary = int(react_region.get("y", int(canvas["height"]) * 0.75))
-            cfg["movie_clip"]["region"]["height"] = boundary
-            profile_region = cfg["profile_section"]["region"]
-            profile_region["y"] = boundary
-            profile_region["height"] = int(canvas["height"]) - boundary
-            logger.info(f"No reaction video -> clip extended to y={boundary}, profile moved to bottom.")
+            logger.info("No reaction video -> keeping standard layout design.")
 
         # Render fact text overlay
         fact_png = None

@@ -144,7 +144,7 @@ async def async_get_latest_video_id() -> Optional[str]:
     def fetch():
         conn = sqlite3.connect(DB_FILE)
         c = conn.cursor()
-        c.execute("SELECT video_id FROM memory LIMIT 1")
+        c.execute("SELECT video_id FROM memory ORDER BY rowid DESC LIMIT 1")
         row = c.fetchone()
         conn.close()
         if row:

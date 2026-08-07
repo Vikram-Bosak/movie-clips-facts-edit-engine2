@@ -5,50 +5,52 @@
     "fps": 30
   },
   "background": {
-    "asset": "assets/background_space.mp4",
-    "auto_generate": true,
+    "asset": "assets/background_gradient.mp4",
+    "auto_generate": false,
     "generate_duration": 30,
-    "starfield_png": "assets/starfield.png"
+    "bg_color_top": "#F5EFEB",
+    "bg_color_bottom": "#E5D9D3"
+  },
+  "card": {
+    "x": 40,
+    "y": 80,
+    "width": 640,
+    "height": 780,
+    "bg_color": "#000000",
+    "border_color": "#ffffff1a",
+    "border_width": 2,
+    "radius": 24
   },
   "movie_clip": {
     "region": {
-      "x": 0,
-      "y": 0,
-      "width": 720,
-      "height": 760
+      "x": 60,
+      "y": 420,
+      "width": 600,
+      "height": 420
     }
-  },
-  "fact_text": {
-    "enabled": true,
-    "font": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "font_size": 34,
-    "text_color": "#FFFFFF",
-    "box_color": "#00000099",
-    "max_lines": 2,
-    "max_chars_per_line": 34,
-    "padding": 18,
-    "bottom_margin": 24
   },
   "profile_section": {
     "enabled": true,
-    "region": {
-      "x": 0,
-      "y": 760,
-      "width": 720,
-      "height": 220
-    },
-    "bg_color": "#0d0d1a",
-    "placeholder_text": "MOVIE FACTS DAILY",
-    "placeholder_subtext": "Template coming soon"
+    "placeholder_text": "SpideyPunch",
+    "placeholder_subtext": "@SpideyPunch",
+    "avatar_color": "#ff5555"
+  },
+  "fact_text": {
+    "enabled": true,
+    "font_size": 23,
+    "text_color": "#FFFFFF",
+    "max_lines": 7,
+    "max_chars_per_line": 50,
+    "line_height": 31
   },
   "reaction_character": {
     "enabled": true,
     "asset": "assets/reaction.mp4",
     "region": {
       "x": 0,
-      "y": 980,
+      "y": 850,
       "width": 720,
-      "height": 300
+      "height": 500
     },
     "include_audio": false
   }
