@@ -13,8 +13,8 @@ def authenticate():
     print("Starting Google Drive OAuth Flow...")
     flow = InstalledAppFlow.from_client_secrets_file(credentials_path, scopes=scopes)
     
-    # Run local server to complete the authorization
-    creds = flow.run_local_server(port=8080, prompt='consent')
+    # Run local server to complete the authorization without opening default host browser
+    creds = flow.run_local_server(port=8080, prompt='consent', open_browser=False)
     
     # Save the credentials to token.json for future use
     with open(token_path, "w") as token_file:
