@@ -60,6 +60,22 @@ def load_sources():
     return urls
 
 
+def get_cookie_flags() -> list:
+    flags = []
+    cookies_path = "cookies.txt"
+    if os.path.exists(cookies_path):
+        flags.extend(["--cookies", cookies_path])
+    elif os.name == 'nt':
+        try:
+            flags.extend(["--cookies-from-browser", "chrome"])
+        except Exception:
+            try:
+                flags.extend(["--cookies-from-browser", "edge"])
+            except Exception:
+                pass
+    return flags
+
+
 def canonical_url(video_id: str) -> str:
     return f"https://www.youtube.com/watch?v={video_id}"
 
@@ -76,7 +92,7 @@ def _entry_url(e: dict, is_youtube: bool) -> str:
 
 async def resolve_entries(url: str):
     """Resolve a single video or playlist URL into a list of video entries."""
-    cmd = ["yt-dlp", "--js-runtimes", "node", "--flat-playlist", "--skip-download", "-J", url]
+    cmd = ["yt-dlp", "--js-runtimes", "node", "--flat-playlist", "--skip-download", "-J"] + get_cookie_flags() + [url]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -130,7 +146,7 @@ async def resolve_entries(url: str):
 
 async def fetch_full_metadata(video_url: str):
     """Fetch full metadata (title, description, channel, duration) for a video."""
-    cmd = ["yt-dlp", "--js-runtimes", "node", "--skip-download", "-J", video_url]
+    cmd = ["yt-dlp", "--js-runtimes", "node", "--skip-download", "-J"] + get_cookie_flags() + [video_url]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -184,8 +200,7 @@ async def download_video():
             "--output", output_path,
             "--merge-output-format", "mp4",
             "--quiet",
-            target_url
-        ]
+        ] + get_cookie_flags() + [target_url]
 
         try:
             proc = await asyncio.create_subprocess_exec(
