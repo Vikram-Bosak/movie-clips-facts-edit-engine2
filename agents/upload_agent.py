@@ -56,8 +56,8 @@ from openai import OpenAI
 async def upload_video():
     video_id = await async_get_latest_video_id()
     if not video_id:
-        logger.error("No video_id found in memory.")
-        sys.exit(1)
+        logger.warning("No video_id found in memory. Skipping upload cleanly.")
+        sys.exit(0)
         
     memory = await async_get_memory(video_id)
     final_video = memory.final_video_path

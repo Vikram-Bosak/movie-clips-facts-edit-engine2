@@ -16,8 +16,8 @@ def truncate_str(text, max_len=300):
 async def send_report():
     video_id = await async_get_latest_video_id()
     if not video_id:
-        logger.error("No video_id found in memory.")
-        sys.exit(1)
+        logger.warning("No video_id found in memory. Skipping report cleanly.")
+        sys.exit(0)
 
     memory = await async_get_memory(video_id)
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
