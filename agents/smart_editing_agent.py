@@ -97,17 +97,18 @@ def detect_green_key_color(video_path):
         ret, frame = cap.read()
         cap.release()
         if not ret:
-            return "0x2E794B"
+            return "None"
+        h, w = frame.shape[:2]
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         green_mask = (hsv[:, :, 0] >= 35) & (hsv[:, :, 0] <= 85) & (hsv[:, :, 1] >= 40) & (hsv[:, :, 2] >= 40)
         green_count = np.sum(green_mask)
-        if green_count > 1000:
+        if green_count > (h * w * 0.05):
             avg_green_bgr = frame[green_mask].mean(axis=0)
             r, g, b = int(avg_green_bgr[2]), int(avg_green_bgr[1]), int(avg_green_bgr[0])
             return f"0x{r:02X}{g:02X}{b:02X}"
     except Exception:
         pass
-    return "0x2E794B"
+    return "None"
 
 
 def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration,
@@ -269,7 +270,10 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
         reaction_region = cfg["reaction_character"]["region"]
         rw, rh = int(reaction_region["width"]), int(reaction_region["height"])
         rx, ry = int(reaction_region["x"]), int(reaction_region["y"])
-        parts.append(f"[{reaction_input_idx}:v]crop=608:1080:656:0,scale={rw}:{rh}:force_original_aspect_ratio=increase,crop={rw}:{rh},chromakey={reaction_green_color}:0.22:0.02,setpts=PTS-STARTPTS[react]")
+        if reaction_green_color and reaction_green_color != "None":
+            parts.append(f"[{reaction_input_idx}:v]crop=608:1080:656:0,scale={rw}:{rh}:force_original_aspect_ratio=increase,crop={rw}:{rh},chromakey={reaction_green_color}:0.15:0.02,setpts=PTS-STARTPTS[react]")
+        else:
+            parts.append(f"[{reaction_input_idx}:v]crop=608:1080:656:0,scale={rw}:{rh}:force_original_aspect_ratio=increase,crop={rw}:{rh},setpts=PTS-STARTPTS[react]")
         parts.append(f"[{cur_label}][react]overlay={rx}:{ry}:shortest=1[outv]")
         video_label = "outv"
     else:
