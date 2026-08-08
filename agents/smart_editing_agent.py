@@ -13,6 +13,7 @@ from render_overlays import (
     render_fact_overlay,
     render_profile_section,
     generate_red_arrow_png,
+    generate_red_circle_png,
 )
 
 CONFIG_FILE = "layout_config.json"
@@ -111,6 +112,7 @@ def detect_green_key_color(video_path):
 
 def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration,
                          arrow_x, arrow_y, arrow_x_start, arrow_y_start, arrow_x_end, arrow_y_end, arrow_t_start, arrow_t_end,
+                         circle_x_start, circle_y_start, circle_x_end, circle_y_end, circle_t_start, circle_t_end,
                          reaction_green_color, delogo_regions_str):
     canvas = cfg["canvas"]
     W, H = int(canvas["width"]), int(canvas["height"])
@@ -145,6 +147,13 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
     generate_red_arrow_png(arrow_png)
     cmd += ["-loop", "1", "-framerate", str(canvas["fps"]), "-i", arrow_png]
     arrow_input_idx = input_idx
+    input_idx += 1
+
+    # Red Circle Overlay Input
+    circle_png = f"{ASSETS_DIR}/red_circle.png"
+    generate_red_circle_png(circle_png)
+    cmd += ["-loop", "1", "-framerate", str(canvas["fps"]), "-i", circle_png]
+    circle_input_idx = input_idx
     input_idx += 1
 
     # Apply delogo filters if text/watermark regions are detected
@@ -207,6 +216,28 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
     if fact_png:
         parts.append(f"[{cur_label}][2:v]overlay=0:0[bgpcf]")
         cur_label = "bgpcf"
+
+    # 3.5. Overlay red circle tracking the character's head at the start
+    circle_w, circle_h = 100, 100
+    cx_start_val = circle_x_start if circle_x_start is not None else 0.5
+    cy_start_val = circle_y_start if circle_y_start is not None else 0.35
+    cx_end_val = circle_x_end if circle_x_end is not None else cx_start_val
+    cy_end_val = circle_y_end if circle_y_end is not None else cy_start_val
+    ct_start = circle_t_start if circle_t_start is not None else 0.0
+    ct_end = circle_t_end if circle_t_end is not None else 1.2
+    c_duration = max(0.1, ct_end - ct_start)
+
+    c_ax_start = cx + int(cx_start_val * cw) - (circle_w // 2)
+    c_ay_start = max(cy + 10, cy + int(cy_start_val * ch) - (circle_h // 2))
+    c_ax_end = cx + int(cx_end_val * cw) - (circle_w // 2)
+    c_ay_end = max(cy + 10, cy + int(cy_end_val * ch) - (circle_h // 2))
+
+    c_ax_expression = f"{c_ax_start} + ({c_ax_end - c_ax_start}) * (t - {ct_start}) / {c_duration}"
+    c_ay_expression = f"{c_ay_start} + ({c_ay_end - c_ay_start}) * (t - {ct_start}) / {c_duration}"
+
+    parts.append(f"[{circle_input_idx}:v]scale={circle_w}:{circle_h}[circle_scaled]")
+    parts.append(f"[{cur_label}][circle_scaled]overlay=x='{c_ax_expression}':y='{c_ay_expression}':enable='between(t,{ct_start},{ct_end})':shortest=1[{cur_label}_circle]")
+    cur_label = f"{cur_label}_circle"
 
     # 4. Overlay red arrow pointing to the main subject with bounce animation and motion tracking
     arrow_w, arrow_h = 80, 80
@@ -286,8 +317,8 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
 async def edit_video():
     video_id = await async_get_latest_video_id()
     if not video_id:
-        logger.error("No video_id found in memory.")
-        sys.exit(1)
+        logger.warning("No video_id found in memory. Skipping editing cleanly.")
+        sys.exit(0)
 
     memory = await async_get_memory(video_id)
     clip_path = memory.clip_path
@@ -357,6 +388,8 @@ async def edit_video():
             cfg, video_id, clip_path, bg_path, fact_png, profile_png, reaction_path, clip_duration,
             memory.arrow_x, memory.arrow_y, memory.arrow_x_start, memory.arrow_y_start,
             memory.arrow_x_end, memory.arrow_y_end, memory.arrow_t_start, memory.arrow_t_end,
+            memory.circle_x_start, memory.circle_y_start, memory.circle_x_end, memory.circle_y_end,
+            memory.circle_t_start, memory.circle_t_end,
             reaction_green_color, memory.delogo_regions
         )
 

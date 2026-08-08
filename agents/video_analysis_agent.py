@@ -45,8 +45,8 @@ async def run_llm(client, prompt, temperature=0.5, max_tokens=1024):
 async def analyze_video():
     video_id = await async_get_latest_video_id()
     if not video_id:
-        logger.error("No video_id found in memory.")
-        sys.exit(1)
+        logger.warning("No video_id found in memory. Skipping analysis cleanly.")
+        sys.exit(0)
 
     memory = await async_get_memory(video_id)
     video_path = memory.local_video_path
@@ -184,8 +184,12 @@ Do not output any explanation or extra text.
         arrow_x = 0.5
         arrow_y = 0.5
 
-        # Select transient display interval (0.8 seconds duration)
-        arrow_t_start = round(random.uniform(1.0, max(1.0, clip_duration - 1.5)), 2)
+        # Select transient display interval for Circle (0.0s to 1.2s)
+        circle_t_start = 0.0
+        circle_t_end = 1.2
+
+        # Select transient display interval for Arrow (starts after circle, duration 0.8s)
+        arrow_t_start = round(random.uniform(1.8, max(1.8, clip_duration - 1.2)), 2)
         arrow_t_end = round(arrow_t_start + 0.8, 2)
 
         clip_cap = cv2.VideoCapture(clip_path)
@@ -212,8 +216,35 @@ Do not output any explanation or extra text.
             except Exception:
                 return 0.5, 0.5
 
+        def get_person_head_coords_at_time(cap, target_time):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(target_time * clip_fps))
+            ret, frame = cap.read()
+            if not ret:
+                return 0.5, 0.35
+            try:
+                results = yolo_model(frame, verbose=False)
+                max_area = 0
+                bx, by = 0.5, 0.35
+                for r in results:
+                    for box in r.boxes:
+                        if int(box.cls[0]) == 0:  # Person
+                            coords = box.xyxyn[0].tolist()
+                            w = coords[2] - coords[0]
+                            h = coords[3] - coords[1]
+                            area = w * h
+                            if area > max_area:
+                                max_area = area
+                                bx = (coords[0] + coords[2]) / 2.0
+                                by = coords[1] + h * 0.15
+                return bx, by
+            except Exception:
+                return 0.5, 0.35
+
         arrow_x_start, arrow_y_start = get_subject_coords_at_time(clip_cap, arrow_t_start)
         arrow_x_end, arrow_y_end = get_subject_coords_at_time(clip_cap, arrow_t_end)
+
+        circle_x_start, circle_y_start = get_person_head_coords_at_time(clip_cap, circle_t_start)
+        circle_x_end, circle_y_end = get_person_head_coords_at_time(clip_cap, circle_t_end)
         clip_fps = clip_cap.get(cv2.CAP_PROP_FPS)
         clip_frames = int(clip_cap.get(cv2.CAP_PROP_FRAME_COUNT))
         frame_times = [0.0]
@@ -330,6 +361,12 @@ Output ONLY the raw fact paragraph text. Do not number it, do not add explanatio
             "arrow_y_end": arrow_y_end,
             "arrow_t_start": arrow_t_start,
             "arrow_t_end": arrow_t_end,
+            "circle_x_start": circle_x_start,
+            "circle_y_start": circle_y_start,
+            "circle_x_end": circle_x_end,
+            "circle_y_end": circle_y_end,
+            "circle_t_start": circle_t_start,
+            "circle_t_end": circle_t_end,
             "delogo_regions": json.dumps(delogo_boxes),
         })
 

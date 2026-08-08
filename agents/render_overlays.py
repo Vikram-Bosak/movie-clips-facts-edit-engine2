@@ -321,3 +321,17 @@ def generate_red_arrow_png(output_path):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     img.save(output_path)
     return output_path
+
+
+def generate_red_circle_png(output_path):
+    """Draw a classic, transparent Red Circle with a white outline border."""
+    img = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    # Draw white outer circle
+    draw.ellipse([20, 20, 180, 180], outline=(255, 255, 255, 255), width=8)
+    # Draw red inner circle
+    draw.ellipse([24, 24, 176, 176], outline=(255, 0, 0, 255), width=4)
+    
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    img.save(output_path)
+    return output_path
