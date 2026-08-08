@@ -28,13 +28,19 @@ def get_oauth_credentials():
     token_str = os.environ.get("GDRIVE_OAUTH_TOKEN")
     
     if token_str:
-        logger.info("Loading Google Drive OAuth credentials from environment variable...")
         try:
             token_data = json.loads(token_str)
-            creds = Credentials.from_authorized_user_info(token_data, scopes)
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            return creds
+            if token_data.get("type") == "service_account":
+                logger.info("Loading Google Drive Service Account from environment variable...")
+                from google.oauth2 import service_account
+                creds = service_account.Credentials.from_service_account_info(token_data, scopes=scopes)
+                return creds
+            else:
+                logger.info("Loading Google Drive OAuth credentials from environment variable...")
+                creds = Credentials.from_authorized_user_info(token_data, scopes)
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                return creds
         except Exception as e:
             logger.error(f"Failed to parse GDRIVE_OAUTH_TOKEN: {e}")
             
