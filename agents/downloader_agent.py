@@ -176,17 +176,17 @@ async def download_video():
     import urllib.parse
     import random
     queries = [
-        "movie clip compilation",
+        "hollywood movie clip compilation",
         "hollywood movie clips",
         "marvel movie clips",
-        "sci-fi movie clips",
-        "action movie scenes",
-        "iconic movie scenes",
+        "sci-fi hollywood movie clips",
+        "action hollywood movie scenes",
+        "iconic hollywood movie scenes",
         "superhero movie scenes",
-        "new movie clips",
-        "trending movie scenes",
-        "thriller movie clips",
-        "comedy movie scenes"
+        "new hollywood movie clips",
+        "trending hollywood movie scenes",
+        "thriller hollywood movie clips",
+        "comedy hollywood movie scenes"
     ]
     studios_query = random.choice(queries)
     encoded_query = urllib.parse.quote_plus(studios_query)
@@ -215,6 +215,21 @@ async def download_video():
         target_url = video["url"]
         if target_url in processed_urls:
             skipped_already_processed.append(video)
+            continue
+            
+        # Strict Hollywood Filter: Skip Bollywood/Tollywood/Indian regional content
+        indian_keywords = ["india", "bollywood", "tollywood", "kollywood", "hindi", "tamil", "telugu", "malayalam", "kannada", "punjabi", "bhojpuri"]
+        title_lower = (video.get("title") or "").lower()
+        channel_lower = (video.get("channel") or "").lower()
+        description_lower = (video.get("description") or "").lower()
+        
+        is_indian = False
+        for kw in indian_keywords:
+            if kw in title_lower or kw in channel_lower or kw in description_lower:
+                is_indian = True
+                break
+        if is_indian:
+            logger.info(f"Skipping Indian/regional content: {video.get('title')} (Channel: {video.get('channel')})")
             continue
             
         # Filter by duration under 240s
