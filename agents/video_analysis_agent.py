@@ -11,7 +11,7 @@ import easyocr
 from ultralytics import YOLO
 from openai import OpenAI
 
-from memory_agent import async_get_latest_video_id, async_get_memory, async_update_memory
+from memory_agent import async_get_latest_video_id, async_get_memory, async_update_memory, init_db
 
 import random
 CLIP_TARGET_DURATION = float(random.randint(4, 10))
@@ -43,6 +43,7 @@ async def run_llm(client, prompt, temperature=0.5, max_tokens=1024):
 
 
 async def analyze_video():
+    init_db()
     video_id = await async_get_latest_video_id()
     if not video_id:
         logger.warning("No video_id found in memory. Skipping analysis cleanly.")

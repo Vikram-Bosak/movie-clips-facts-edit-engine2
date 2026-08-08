@@ -6,7 +6,7 @@ import subprocess
 from loguru import logger
 from datetime import datetime, timezone
 
-from memory_agent import async_get_latest_video_id, async_get_memory, async_update_memory
+from memory_agent import async_get_latest_video_id, async_get_memory, async_update_memory, init_db
 from render_overlays import (
     generate_background_video,
     generate_starfield_png,
@@ -319,6 +319,7 @@ def build_ffmpeg_command(cfg, video_id, clip_path, bg_path, fact_png, profile_pn
 
 
 async def edit_video():
+    init_db()
     video_id = await async_get_latest_video_id()
     if not video_id:
         logger.warning("No video_id found in memory. Skipping editing cleanly.")
