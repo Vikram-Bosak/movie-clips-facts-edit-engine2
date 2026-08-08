@@ -187,9 +187,14 @@ async def download_video():
     now = datetime.now(timezone.utc)
     from datetime import timedelta
     
-    hourly_candidates = []
-    daily_candidates = []
-    other_candidates = []
+    hourly_studio = []
+    daily_studio = []
+    other_studio = []
+    
+    hourly_other = []
+    daily_other = []
+    other_other = []
+    
     skipped_already_processed = []
     
     for video in search_results:
@@ -198,16 +203,15 @@ async def download_video():
             skipped_already_processed.append(video)
             continue
             
-        # Check if uploader belongs to the allowed Hollywood clip channels
-        studios = ["movieclips", "joblo", "filmisnow", "kinocheck"]
-        channel_name = (video.get("channel") or "").lower()
-        if not any(s in channel_name for s in studios):
-            continue
-            
-        # Filter by duration under 240s (aligns with reference match-filter)
+        # Filter by duration under 240s
         dur = video.get("duration")
         if dur and float(dur) > 240:
             continue
+            
+        # Check if uploader belongs to the allowed Hollywood clip channels
+        studios = ["movieclips", "joblo", "filmisnow", "kinocheck"]
+        channel_name = (video.get("channel") or "").lower()
+        is_studio = any(s in channel_name for s in studios)
             
         # Check if hourly (last 1 hour)
         is_hourly = False
@@ -231,23 +235,41 @@ async def download_video():
             except Exception:
                 pass
                 
-        if is_hourly:
-            hourly_candidates.append(video)
-        elif is_daily:
-            daily_candidates.append(video)
+        if is_studio:
+            if is_hourly:
+                hourly_studio.append(video)
+            elif is_daily:
+                daily_studio.append(video)
+            else:
+                other_studio.append(video)
         else:
-            other_candidates.append(video)
-            
+            if is_hourly:
+                hourly_other.append(video)
+            elif is_daily:
+                daily_other.append(video)
+            else:
+                other_other.append(video)
+                
     # Priority Selection
-    if hourly_candidates:
-        candidates = hourly_candidates
-        logger.info(f"Priority 1: Found {len(hourly_candidates)} clips uploaded in the last hour.")
-    elif daily_candidates:
-        candidates = daily_candidates
-        logger.info(f"Priority 2: No hourly clips found. Found {len(daily_candidates)} clips uploaded today.")
-    else:
-        candidates = other_candidates
-        logger.info(f"Priority 3: No daily clips found. Using {len(other_candidates)} recent clips.")
+    candidates = []
+    if hourly_studio:
+        candidates = hourly_studio
+        logger.info(f"Priority 1 (Studio): Found {len(hourly_studio)} target channel clips uploaded in the last hour.")
+    elif daily_studio:
+        candidates = daily_studio
+        logger.info(f"Priority 2 (Studio): Found {len(daily_studio)} target channel clips uploaded today.")
+    elif other_studio:
+        candidates = other_studio
+        logger.info(f"Priority 3 (Studio): Using {len(other_studio)} recent target channel clips.")
+    elif hourly_other:
+        candidates = hourly_other
+        logger.info(f"Priority 4 (Broad): No target studio clips. Found {len(hourly_other)} broad YouTube clips uploaded in the last hour.")
+    elif daily_other:
+        candidates = daily_other
+        logger.info(f"Priority 5 (Broad): No target studio clips. Found {len(daily_other)} broad YouTube clips uploaded today.")
+    elif other_other:
+        candidates = other_other
+        logger.info(f"Priority 6 (Broad): No target studio clips. Using {len(other_other)} broad YouTube clips.")
         
     if not candidates:
         logger.warning("No new, unprocessed videos found in search results. Skipping this run to prevent duplicate content.")
