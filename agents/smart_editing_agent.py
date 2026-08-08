@@ -342,31 +342,41 @@ async def edit_video():
     try:
         bg_path = ensure_background(cfg)
 
-        # Reaction character video (optional)
+        # Reaction character video (Compulsory - always present)
         reaction_path = None
         reaction_cfg = cfg.get("reaction_character", {})
-        if reaction_cfg.get("enabled", True):
-            import shutil
-            import hashlib
-            rx_dir = r"C:\Users\admin\Documents\reaction charactor"
-            if not os.path.exists(rx_dir):
-                rx_dir = os.path.join(ASSETS_DIR, "reaction_characters")
-            if os.path.exists(rx_dir) and not os.environ.get("BATCH_TEST"):
-                files = [os.path.join(rx_dir, f) for f in os.listdir(rx_dir) if f.endswith(".mp4")]
-                if files:
-                    idx = int(hashlib.md5(video_id.encode('utf-8')).hexdigest(), 16) % len(files)
-                    selected_rx = files[idx]
-                    logger.info(f"Selected reaction character dynamically: {selected_rx}")
-                    os.makedirs(ASSETS_DIR, exist_ok=True)
+        import shutil
+        import hashlib
+        rx_dir = r"C:\Users\admin\Documents\reaction charactor"
+        if not os.path.exists(rx_dir):
+            rx_dir = os.path.join(ASSETS_DIR, "reaction_characters")
+            
+        if os.path.exists(rx_dir):
+            files = [os.path.join(rx_dir, f) for f in os.listdir(rx_dir) if f.endswith(".mp4")]
+            if files:
+                idx = int(hashlib.md5(video_id.encode('utf-8')).hexdigest(), 16) % len(files)
+                selected_rx = files[idx]
+                logger.info(f"Selected reaction character dynamically: {selected_rx}")
+                os.makedirs(ASSETS_DIR, exist_ok=True)
+                try:
                     shutil.copy(selected_rx, f"{ASSETS_DIR}/reaction.mp4")
                     reaction_path = f"{ASSETS_DIR}/reaction.mp4"
+                except Exception as e:
+                    logger.warning(f"Failed to copy reaction character: {e}")
 
-            if not reaction_path:
-                candidate = reaction_cfg.get("asset", f"{ASSETS_DIR}/reaction.mp4")
-                if os.path.exists(candidate):
-                    reaction_path = candidate
-                else:
-                    logger.warning(f"Reaction character video not found at {candidate}. Skipping (will be added later).")
+        if not reaction_path:
+            candidate = reaction_cfg.get("asset", f"{ASSETS_DIR}/reaction.mp4")
+            if os.path.exists(candidate):
+                reaction_path = candidate
+            else:
+                fallback_dir = os.path.join(ASSETS_DIR, "reaction_characters")
+                if os.path.exists(fallback_dir):
+                    files = [os.path.join(fallback_dir, f) for f in os.listdir(fallback_dir) if f.endswith(".mp4")]
+                    if files:
+                        reaction_path = files[0]
+                if not reaction_path:
+                    logger.error("No reaction character videos found at all!")
+                    reaction_path = f"{ASSETS_DIR}/reaction.mp4"
 
         # Adaptive layout: without a reaction video, we keep layout clean
         if not reaction_path:
