@@ -174,10 +174,24 @@ async def download_video():
     
     # Use YouTube search URL with sp=CAI%3D parameter to get newest uploads sorted by date
     import urllib.parse
-    studios_query = "movie clip compilation"
+    import random
+    queries = [
+        "movie clip compilation",
+        "hollywood movie clips",
+        "marvel movie clips",
+        "sci-fi movie clips",
+        "action movie scenes",
+        "iconic movie scenes",
+        "superhero movie scenes",
+        "new movie clips",
+        "trending movie scenes",
+        "thriller movie clips",
+        "comedy movie scenes"
+    ]
+    studios_query = random.choice(queries)
     encoded_query = urllib.parse.quote_plus(studios_query)
     search_url = f"https://www.youtube.com/results?search_query={encoded_query}&sp=CAI%253D"
-    logger.info(f"Searching YouTube with query: {studios_query} (URL: {search_url})")
+    logger.info(f"Searching YouTube with randomized query: {studios_query} (URL: {search_url})")
     
     search_results = await resolve_entries(search_url)
     if not search_results:
