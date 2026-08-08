@@ -55,6 +55,12 @@ class MemoryModel(BaseModel):
     arrow_y_end: Optional[float] = None
     arrow_t_start: Optional[float] = None
     arrow_t_end: Optional[float] = None
+    circle_x_start: Optional[float] = None
+    circle_y_start: Optional[float] = None
+    circle_x_end: Optional[float] = None
+    circle_y_end: Optional[float] = None
+    circle_t_start: Optional[float] = None
+    circle_t_end: Optional[float] = None
     delogo_regions: Optional[str] = None
     error: Optional[str] = None
 
@@ -95,28 +101,57 @@ def init_db():
             clip_transcript TEXT,
             clip_scene_analysis TEXT,
             fact_text TEXT,
+            downloader_logs TEXT,
+            youtube_tags TEXT,
+            youtube_keywords TEXT,
+            arrow_x REAL,
+            arrow_y REAL,
+            arrow_x_start REAL,
+            arrow_y_start REAL,
+            arrow_x_end REAL,
+            arrow_y_end REAL,
+            arrow_t_start REAL,
+            arrow_t_end REAL,
+            circle_x_start REAL,
+            circle_y_start REAL,
+            circle_x_end REAL,
+            circle_y_end REAL,
+            circle_t_start REAL,
+            circle_t_end REAL,
+            delogo_regions TEXT,
             error TEXT
         )
     ''')
-    try:
-        c.execute("ALTER TABLE memory ADD COLUMN sound_effects TEXT")
-    except sqlite3.OperationalError:
-        pass
-    for col in [
-        "youtube_title TEXT", "youtube_description TEXT", "youtube_channel TEXT",
-        "source_duration REAL", "clip_start REAL", "clip_duration REAL",
-        "clip_path TEXT", "clip_transcript TEXT", "clip_scene_analysis TEXT",
-        "fact_text TEXT", "downloader_logs TEXT", "youtube_tags TEXT", "youtube_keywords TEXT",
-        "arrow_x REAL", "arrow_y REAL",
-        "arrow_x_start REAL", "arrow_y_start REAL",
-        "arrow_x_end REAL", "arrow_y_end REAL",
-        "arrow_t_start REAL", "arrow_t_end REAL",
-        "delogo_regions TEXT"
-    ]:
+    
+    # Safe migration function
+    def add_col(col_name, col_type):
         try:
-            c.execute(f"ALTER TABLE memory ADD COLUMN {col}")
+            c.execute(f"SELECT {col_name} FROM memory LIMIT 1")
         except sqlite3.OperationalError:
-            pass
+            try:
+                c.execute(f"ALTER TABLE memory ADD COLUMN {col_name} {col_type}")
+            except Exception as e:
+                logger.warning(f"Failed to add column {col_name}: {e}")
+
+    add_col("downloader_logs", "TEXT")
+    add_col("youtube_tags", "TEXT")
+    add_col("youtube_keywords", "TEXT")
+    add_col("arrow_x", "REAL")
+    add_col("arrow_y", "REAL")
+    add_col("arrow_x_start", "REAL")
+    add_col("arrow_y_start", "REAL")
+    add_col("arrow_x_end", "REAL")
+    add_col("arrow_y_end", "REAL")
+    add_col("arrow_t_start", "REAL")
+    add_col("arrow_t_end", "REAL")
+    add_col("circle_x_start", "REAL")
+    add_col("circle_y_start", "REAL")
+    add_col("circle_x_end", "REAL")
+    add_col("circle_y_end", "REAL")
+    add_col("circle_t_start", "REAL")
+    add_col("circle_t_end", "REAL")
+    add_col("delogo_regions", "TEXT")
+
     conn.commit()
     conn.close()
     logger.info("Database initialized.")
