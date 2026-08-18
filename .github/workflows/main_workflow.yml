@@ -30,7 +30,8 @@ jobs:
           which nodejs || echo "nodejs not found"
           which node || echo "node not found"
           node -v || echo "node -v failed"
-          nodejs -v || echo "nodejs -v failed"
+          python -c "import shutil; print('node via shutil:', shutil.which('node'))"
+          yt-dlp -v --extractor-args "youtube:player_client=android,web_embedded" -g "https://www.youtube.com/watch?v=o3bhQwY0KCY" || echo "yt-dlp failed"
 
       # Downloader Agent (YouTube)
       - name: Run YouTube Downloader Agent
