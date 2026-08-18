@@ -27,11 +27,10 @@ jobs:
 
       - name: Debug nodejs installation
         run: |
-          which nodejs || echo "nodejs not found"
-          which node || echo "node not found"
-          node -v || echo "node -v failed"
-          python -c "import shutil; print('node via shutil:', shutil.which('node'))"
-          yt-dlp -v --extractor-args "youtube:player_client=android,web_embedded" -g "https://www.youtube.com/watch?v=o3bhQwY0KCY" || echo "yt-dlp failed"
+          node -v
+          python -c "import shutil; print('shutil node:', shutil.which('node'))"
+          python -c "import subprocess; r = subprocess.run(['node', '-v'], capture_output=True, text=True); print('subprocess node -v:', r.returncode, r.stdout, r.stderr)"
+          python -c "from yt_dlp.jsinterp import JS_RUNTIMES; print('JS_RUNTIMES:', {k: v.is_available() for k, v in JS_RUNTIMES.items()})" || echo "JS_RUNTIMES failed"
 
       # Downloader Agent (YouTube)
       - name: Run YouTube Downloader Agent
