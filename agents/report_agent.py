@@ -4,7 +4,10 @@ import asyncio
 import httpx
 from datetime import datetime
 from loguru import logger
+from dotenv import load_dotenv
 from memory_agent import async_get_latest_video_id, async_get_memory
+
+load_dotenv()
 
 
 def truncate_str(text, max_len=300):

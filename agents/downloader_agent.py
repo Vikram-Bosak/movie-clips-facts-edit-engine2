@@ -170,28 +170,49 @@ async def fetch_full_metadata(video_url: str):
 async def download_video():
     logger.info("Starting YouTube Movie Clip Downloader...")
 
+async def download_video():
+    logger.info("Starting YouTube Movie Clip Downloader...")
+
     processed_urls = load_history()
     
-    # Use YouTube search URL with sp=CAI%3D parameter to get newest uploads sorted by date
     import urllib.parse
     import random
-    queries = [
-        "hollywood movie clip compilation",
-        "hollywood movie clips",
-        "marvel movie clips",
-        "sci-fi hollywood movie clips",
-        "action hollywood movie scenes",
-        "iconic hollywood movie scenes",
-        "superhero movie scenes",
-        "new hollywood movie clips",
-        "trending hollywood movie scenes",
-        "thriller hollywood movie clips",
-        "comedy hollywood movie scenes"
+    
+    # List of movies to search for targeted searches
+    movies = [
+        "The Dark Knight", "Inception", "Gladiator", "The Matrix", "Mad Max Fury Road", 
+        "Inglourious Basterds", "Pulp Fiction", "Avengers Endgame", "Interstellar", 
+        "Django Unchained", "Titanic", "Avatar", "Pirates of the Caribbean", "Terminator 2", 
+        "John Wick", "Skyfall", "Mission Impossible", "The Lord of the Rings", "Jurassic Park", 
+        "Die Hard", "Spider-Man", "Fight Club", "The Dark Knight Rises", "Logan", "No Country for Old Men"
     ]
-    studios_query = random.choice(queries)
+    
+    # Generic engaging search terms
+    generic_terms = [
+        "Best Hollywood action movie scenes",
+        "Best fight scenes movie clips",
+        "Hollywood movie dramatic scenes",
+        "Best suspense movie clips",
+        "Best funny movie scenes",
+        "Hollywood chase scene",
+        "Best emotional movie confrontation"
+    ]
+    
+    # Randomly decide to search for a specific movie + scene type, or a generic term
+    if random.choice([True, False]):
+        movie = random.choice(movies)
+        scene_type = random.choice([
+            "fight scene", "action scene", "confrontation scene", 
+            "suspense scene", "dramatic scene", "chase scene", "funny scene"
+        ])
+        studios_query = f"{movie} {scene_type} clip"
+    else:
+        studios_query = random.choice(generic_terms)
+        
     encoded_query = urllib.parse.quote_plus(studios_query)
-    search_url = f"https://www.youtube.com/results?search_query={encoded_query}&sp=CAI%253D"
-    logger.info(f"Searching YouTube with randomized query: {studios_query} (URL: {search_url})")
+    # Search on YouTube (removed sp=CAI%3D to get relevant search results rather than just newest, which are often poor quality)
+    search_url = f"https://www.youtube.com/results?search_query={encoded_query}"
+    logger.info(f"Searching YouTube with query: '{studios_query}' (URL: {search_url})")
     
     search_results = await resolve_entries(search_url)
     if not search_results:
@@ -201,14 +222,7 @@ async def download_video():
     now = datetime.now(timezone.utc)
     from datetime import timedelta
     
-    hourly_studio = []
-    daily_studio = []
-    other_studio = []
-    
-    hourly_other = []
-    daily_other = []
-    other_other = []
-    
+    ranked_results = []
     skipped_already_processed = []
     
     for video in search_results:
@@ -232,73 +246,59 @@ async def download_video():
             logger.info(f"Skipping Indian/regional content: {video.get('title')} (Channel: {video.get('channel')})")
             continue
             
-        # Filter by duration under 240s
+        # Filter by duration: standard clips, let's keep them under 300s (5 mins)
         dur = video.get("duration")
-        if dur and float(dur) > 240:
+        if dur and float(dur) > 300:
             continue
             
-        # Check if uploader belongs to the allowed Hollywood clip channels
-        studios = ["movieclips", "joblo", "filmisnow", "kinocheck"]
-        channel_name = (video.get("channel") or "").lower()
-        is_studio = any(s in channel_name for s in studios)
+        # Calculate source quality / channel score
+        score = 0
+        
+        # Priority 1: Check uploader/channel name for official clip channels and major studios
+        studios = [
+            "movieclips", "joblo", "filmisnow", "kinocheck", "rottentomatoes", 
+            "universalpictures", "warnerbros", "paramount", "sonyphotos", "marvel", 
+            "a24", "neon", "netflix", "hbo", "disney", "lionsgate", "20thcentury"
+        ]
+        is_studio = any(s in channel_lower for s in studios)
+        if is_studio:
+            score += 150
             
-        # Check if hourly (last 1 hour)
-        is_hourly = False
+        # Priority 2: Title keywords
+        good_keywords = ["clip", "scene", "fight", "action", "confrontation", "suspense", "ending", "chase", "funny", "emotional"]
+        for kw in good_keywords:
+            if kw in title_lower:
+                score += 10
+                
+        # Priority 3: HD quality indicator
+        if "4k" in title_lower or "1080p" in title_lower or "hd" in title_lower:
+            score += 15
+            
+        # Priority 4: Avoid bad uploader/title keywords (e.g. gameplay, reaction, walkthough, trailer)
+        bad_keywords = ["reaction", "review", "trailer", "teaser", "parody", "shorts", "tiktok", "reels", "gameplay", "walkthrough", "analysis", "explained", "dubbed"]
+        for kw in bad_keywords:
+            if kw in title_lower or kw in channel_lower:
+                score -= 60
+                
+        # Recency bonus if available
         ts = video.get("timestamp")
         if ts:
             try:
                 dt = datetime.fromtimestamp(ts, timezone.utc)
-                if now - dt <= timedelta(hours=1):
-                    is_hourly = True
+                if now - dt <= timedelta(hours=24):
+                    score += 10
             except Exception:
                 pass
                 
-        # Check if daily (today)
-        is_daily = False
-        ud = video.get("upload_date")
-        if ud:
-            try:
-                dt = datetime.strptime(ud, "%Y%m%d").replace(tzinfo=timezone.utc)
-                if dt.date() == now.date():
-                    is_daily = True
-            except Exception:
-                pass
-                
-        if is_studio:
-            if is_hourly:
-                hourly_studio.append(video)
-            elif is_daily:
-                daily_studio.append(video)
-            else:
-                other_studio.append(video)
-        else:
-            if is_hourly:
-                hourly_other.append(video)
-            elif is_daily:
-                daily_other.append(video)
-            else:
-                other_other.append(video)
-                
-    # Priority Selection
-    candidates = []
-    if hourly_studio:
-        candidates = hourly_studio
-        logger.info(f"Priority 1 (Studio): Found {len(hourly_studio)} target channel clips uploaded in the last hour.")
-    elif daily_studio:
-        candidates = daily_studio
-        logger.info(f"Priority 2 (Studio): Found {len(daily_studio)} target channel clips uploaded today.")
-    elif other_studio:
-        candidates = other_studio
-        logger.info(f"Priority 3 (Studio): Using {len(other_studio)} recent target channel clips.")
-    elif hourly_other:
-        candidates = hourly_other
-        logger.info(f"Priority 4 (Broad): No target studio clips. Found {len(hourly_other)} broad YouTube clips uploaded in the last hour.")
-    elif daily_other:
-        candidates = daily_other
-        logger.info(f"Priority 5 (Broad): No target studio clips. Found {len(daily_other)} broad YouTube clips uploaded today.")
-    elif other_other:
-        candidates = other_other
-        logger.info(f"Priority 6 (Broad): No target studio clips. Using {len(other_other)} broad YouTube clips.")
+        video["priority_score"] = score
+        ranked_results.append(video)
+        
+    # Sort candidates by score descending
+    ranked_results.sort(key=lambda x: x.get("priority_score", 0), reverse=True)
+    candidates = ranked_results
+    
+    if candidates:
+        logger.info(f"Top candidate: '{candidates[0].get('title')}' (Channel: '{candidates[0].get('channel')}', Score: {candidates[0].get('priority_score')})")
         
     if not candidates:
         logger.warning("No new, unprocessed videos found in search results. Skipping this run to prevent duplicate content.")
