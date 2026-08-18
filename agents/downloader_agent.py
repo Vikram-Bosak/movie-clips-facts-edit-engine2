@@ -7,11 +7,36 @@ import subprocess
 from datetime import datetime, timezone
 from loguru import logger
 from memory_agent import async_update_memory
+from openai import OpenAI
 
 # Track downloaded videos locally and persist to git history.txt
 HISTORY_FILE = "history.txt"
 # File with one YouTube video/playlist URL per line (# = comment)
 SOURCES_FILE = "sources.txt"
+
+
+def make_client():
+    api_key = os.environ.get("NVIDIA_API_KEY", "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")
+    if not api_key:
+        raise RuntimeError("NVIDIA_API_KEY environment variable is not set.")
+    return OpenAI(
+        base_url="https://integrate.api.nvidia.com/v1",
+        api_key=api_key
+    )
+
+
+async def run_llm(client, prompt, temperature=0.5, max_tokens=1024):
+    def query():
+        completion = client.chat.completions.create(
+            model="meta/llama-3.1-70b-instruct",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature,
+            top_p=0.95,
+            max_tokens=max_tokens,
+            stream=False
+        )
+        return completion.choices[0].message.content.strip()
+    return await asyncio.to_thread(query)
 
 
 def load_history():
@@ -172,25 +197,46 @@ async def download_video():
 
     processed_urls = load_history()
     
-    # Use YouTube search to get highly relevant, popular clips (no strict date sorting)
+    # Generate search query dynamically using Llama-3.1-70b-instruct
     import urllib.parse
     import random
-    queries = [
-        "best intense movie scenes",
-        "epic fight scene movie clips",
-        "action thriller movie confrontation scenes",
-        "dramatic movie confrontation clips",
-        "most shocking movie endings clips",
-        "suspense suspenseful movie moments clips",
-        "thriller movie chase scenes clips",
-        "iconic action movie fight scenes",
-        "emotional dramatic confrontation scenes movies",
-        "intellectual confrontation verbal fight movie scenes"
-    ]
-    studios_query = random.choice(queries)
+    
+    logger.info("Generating dynamic movie scene search query with AI...")
+    client = make_client()
+    
+    prompt = """
+You are an expert movie content curator for viral social media channels (YouTube Shorts, TikTok).
+Generate a single highly engaging, specific search query for a famous Hollywood movie scene on YouTube.
+The query should target a specific, highly intense action peak, epic fight, dramatic confrontation, suspenseful climax, shocking twist, or iconic movie moment.
+Do NOT output general queries like 'action movie scenes' or 'best movies'.
+Instead, output queries for specific famous movie scenes.
+Examples:
+- The Dark Knight interrogation scene
+- Inception hallway fight scene
+- Whiplash final drum solo scene
+- Inglourious Basterds tavern scene
+
+Return ONLY the plain text search query, with no quotes, no explanation, and no extra text.
+"""
+    try:
+        studios_query = await run_llm(client, prompt, temperature=0.7, max_tokens=100)
+        studios_query = studios_query.strip().strip('"').strip("'")
+        if not studios_query:
+            raise ValueError("Empty response from AI")
+    except Exception as e:
+        logger.warning(f"Failed to generate query with AI: {e}. Falling back to default list.")
+        fallback_queries = [
+            "best intense movie scenes",
+            "epic fight scene movie clips",
+            "action thriller movie confrontation scenes",
+            "dramatic movie confrontation clips",
+            "most shocking movie endings clips"
+        ]
+        studios_query = random.choice(fallback_queries)
+        
     encoded_query = urllib.parse.quote_plus(studios_query)
     search_url = f"https://www.youtube.com/results?search_query={encoded_query}"
-    logger.info(f"Searching YouTube with randomized query: {studios_query} (URL: {search_url})")
+    logger.info(f"Searching YouTube with AI-generated query: {studios_query} (URL: {search_url})")
     
     search_results = await resolve_entries(search_url)
     if not search_results:
