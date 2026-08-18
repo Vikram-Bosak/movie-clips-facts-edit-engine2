@@ -27,8 +27,7 @@ jobs:
 
       - name: Debug nodejs installation
         run: |
-          python -c "from yt_dlp.utils._jsruntime import NodeJsRuntime; rt = NodeJsRuntime(); print('NodeJsRuntime dir:', dir(rt))"
-          python -c "from yt_dlp.utils._jsruntime import NodeJsRuntime; rt = NodeJsRuntime(); print('NodeJsRuntime executable:', rt.executable); print('NodeJsRuntime available:', rt.available)"
+          python -c "from yt_dlp.utils._jsruntime import NodeJsRuntime; rt = NodeJsRuntime(); print('_path:', rt._path); print('_info:', rt._info); print('info:', rt.info)"
 
       # Downloader Agent (YouTube)
       - name: Run YouTube Downloader Agent
