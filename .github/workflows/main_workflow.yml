@@ -27,6 +27,9 @@ jobs:
 
       - name: Debug nodejs installation
         run: |
+          pip install -U yt-dlp
+          yt-dlp --version
+          node --version
           python -c "import inspect; from yt_dlp.utils import _jsruntime; print(inspect.getsource(_jsruntime))"
 
       # Downloader Agent (YouTube)
