@@ -22,6 +22,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && pip install -U yt-dlp
 
 # Pre-cache AI Models (YOLOv8, Faster-Whisper, EasyOCR)
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" && \
+RUN ln -sf /usr/bin/nodejs /usr/bin/node && \
+    python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" && \
     python -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', compute_type='int8')" && \
     python -c "import easyocr; easyocr.Reader(['en'], gpu=False)"

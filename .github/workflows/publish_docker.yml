@@ -36,4 +36,4 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LOWERCASE }}/movie-clips-facts-edit-engine2-runner:latest
-            ghcr.io/${{ env.OWNER_LOWERCASE }}/movie-clips-facts-edit-engine2-runner:v1
+            ghcr.io/${{ env.OWNER_LOWERCASE }}/movie-clips-facts-edit-engine2-runner:v2
