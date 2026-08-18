@@ -11,6 +11,8 @@ on:
 jobs:
   run-agents:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/vikram-bosak/movie-clips-facts-edit-engine2-runner:latest
     permissions:
       contents: write
     env:
@@ -22,17 +24,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install System Dependencies
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg libsm6 libxext6 wget fonts-noto-color-emoji
-
-      - name: Install Python Dependencies
-        run: pip install -r requirements.txt && pip install -U yt-dlp
 
       # Downloader Agent (YouTube)
       - name: Run YouTube Downloader Agent
