@@ -172,25 +172,24 @@ async def download_video():
 
     processed_urls = load_history()
     
-    # Use YouTube search URL with sp=CAI%3D parameter to get newest uploads sorted by date
+    # Use YouTube search to get highly relevant, popular clips (no strict date sorting)
     import urllib.parse
     import random
     queries = [
-        "hollywood movie clip compilation",
-        "hollywood movie clips",
-        "marvel movie clips",
-        "sci-fi hollywood movie clips",
-        "action hollywood movie scenes",
-        "iconic hollywood movie scenes",
-        "superhero movie scenes",
-        "new hollywood movie clips",
-        "trending hollywood movie scenes",
-        "thriller hollywood movie clips",
-        "comedy hollywood movie scenes"
+        "best intense movie scenes",
+        "epic fight scene movie clips",
+        "action thriller movie confrontation scenes",
+        "dramatic movie confrontation clips",
+        "most shocking movie endings clips",
+        "suspense suspenseful movie moments clips",
+        "thriller movie chase scenes clips",
+        "iconic action movie fight scenes",
+        "emotional dramatic confrontation scenes movies",
+        "intellectual confrontation verbal fight movie scenes"
     ]
     studios_query = random.choice(queries)
     encoded_query = urllib.parse.quote_plus(studios_query)
-    search_url = f"https://www.youtube.com/results?search_query={encoded_query}&sp=CAI%253D"
+    search_url = f"https://www.youtube.com/results?search_query={encoded_query}"
     logger.info(f"Searching YouTube with randomized query: {studios_query} (URL: {search_url})")
     
     search_results = await resolve_entries(search_url)

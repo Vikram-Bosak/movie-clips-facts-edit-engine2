@@ -102,12 +102,27 @@ async def analyze_video():
         if video_duration > CLIP_TARGET_DURATION:
             logger.info("Video longer than 7s. Requesting AI to find the most engaging clip...")
             select_prompt = f"""
-You are an expert social media video editor for YouTube Shorts.
-Select the single most engaging, visually exciting, or viral ~{int(CLIP_TARGET_DURATION)} second continuous portion of this movie clip.
-It must be the part that grabs attention instantly (action peak, surprising moment, iconic dialogue, dramatic twist).
+You are an expert social media video editor for YouTube Shorts and TikTok.
+Your task is to select the single most engaging, high-retention ~{int(CLIP_TARGET_DURATION)} second continuous portion of the movie clip.
+We are looking specifically for action, fight scenes, intense suspense, dramatic confrontation, chase sequences, or shocking moments that instantly hook the viewer.
+
+To do this, analyze:
+1. Timeline and Scene Analysis: A cluster of scenes with very short durations (e.g., less than 1.5 seconds per scene) indicates rapid cuts, which are typical for action peaks, fight scenes, or high-intensity chases.
+2. Transcript: Dialogue cues like high-tension words, arguments, dramatic declarations, whispering, shouting, screaming, or exclamation marks.
+
+Instructions:
+- Look for the climax or key peak of the clip (e.g., when the confrontation reaches its highest tension, or the most visually dynamic action sequence).
+- Avoid generic intro/outro talk, or slow build-ups without visual/audio peaks.
+- Return a valid JSON object containing your reasoning and the timestamps.
+
+Required JSON format:
+{{
+  "reasoning": "Explain in 1-2 sentences why this specific window contains the highest intensity action, fight, or dramatic confrontation peak based on scene cuts and dialogue.",
+  "start_time": 12.5,
+  "duration": {CLIP_TARGET_DURATION}
+}}
 
 Total Video Duration: {video_duration:.2f} seconds
-
 Video Title: {title}
 Channel: {channel}
 Description: {description}
@@ -118,15 +133,10 @@ Timeline and Scene Analysis:
 Transcript with Timestamps:
 {raw_transcript[:2500]}
 
-Return ONLY a valid JSON object with keys "start_time" and "duration" (seconds as floats).
-The duration MUST be between 4.0 and {CLIP_MAX_DURATION} seconds (target ~{CLIP_TARGET_DURATION}s).
-Also make sure start_time + duration <= total video duration.
-Example response:
-{{"start_time": 12.5, "duration": {CLIP_TARGET_DURATION}}}
-Do not output any explanation or extra text.
+Do not output any explanation outside the JSON. Return ONLY the raw JSON object.
 """
             try:
-                llm_response = await run_llm(client, select_prompt, temperature=0.3, max_tokens=100)
+                llm_response = await run_llm(client, select_prompt, temperature=0.3, max_tokens=500)
                 logger.info(f"AI clip selection response: {llm_response}")
                 clean_json = llm_response.replace("```json", "").replace("```", "").strip()
                 data = json.loads(clean_json)
