@@ -7,8 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     wget \
     git \
-    nodejs \
+    curl \
+    ca-certificates \
     fonts-noto-color-emoji \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,7 +25,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && pip install -U yt-dlp
 
 # Pre-cache AI Models (YOLOv8, Faster-Whisper, EasyOCR)
-RUN ln -sf /usr/bin/nodejs /usr/local/bin/node && \
+RUN ln -sf /usr/bin/node /usr/local/bin/node && \
     python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" && \
     python -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', compute_type='int8')" && \
     python -c "import easyocr; easyocr.Reader(['en'], gpu=False)"
