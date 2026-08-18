@@ -25,6 +25,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug nodejs installation
+        run: |
+          which nodejs || echo "nodejs not found"
+          which node || echo "node not found"
+          node -v || echo "node -v failed"
+          nodejs -v || echo "nodejs -v failed"
+
       # Downloader Agent (YouTube)
       - name: Run YouTube Downloader Agent
         run: python agents/downloader_agent.py
