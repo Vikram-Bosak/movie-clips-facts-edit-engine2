@@ -34,4 +34,6 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ghcr.io/${{ env.OWNER_LOWERCASE }}/movie-clips-facts-edit-engine2-runner:latest
+          tags: |
+            ghcr.io/${{ env.OWNER_LOWERCASE }}/movie-clips-facts-edit-engine2-runner:latest
+            ghcr.io/${{ env.OWNER_LOWERCASE }}/movie-clips-facts-edit-engine2-runner:v1
