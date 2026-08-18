@@ -95,145 +95,54 @@ async def analyze_video():
         cap.release()
         logger.info(f"Video duration: {video_duration:.2f} seconds")
 
-        # 4. Segment-based Engagement analysis and scoring
+        # 4. AI selects the most engaging ~7s window
         clip_start = 0.0
         clip_duration = min(CLIP_TARGET_DURATION, video_duration)
 
-        def generate_candidate_segments(scene_list, total_duration, min_dur=6.0, max_dur=12.0):
-            candidates = []
-            if not scene_list:
-                start = 0.0
-                while start + min_dur <= total_duration:
-                    end = min(start + 10.0, total_duration)
-                    candidates.append({"start": start, "end": end})
-                    start += 6.0
-                return candidates
-
-            current_segment_start = 0.0
-            for scene in scene_list:
-                s_start = scene["start_time"]
-                s_end = scene["end_time"]
-                if s_end - current_segment_start > max_dur:
-                    if current_segment_start < s_start:
-                        candidates.append({"start": current_segment_start, "end": s_start})
-                    current_segment_start = s_start
-                if s_end - s_start > max_dur:
-                    tmp = s_start
-                    while tmp + min_dur <= s_end:
-                        candidates.append({"start": tmp, "end": min(tmp + 10.0, s_end)})
-                        tmp += 8.0
-                    current_segment_start = s_end
-
-            if total_duration - current_segment_start >= min_dur:
-                candidates.append({"start": current_segment_start, "end": min(current_segment_start + 10.0, total_duration)})
-            
-            if len(candidates) < 3:
-                start = 0.0
-                while start + min_dur <= total_duration:
-                    end = min(start + 10.0, total_duration)
-                    if not any(abs(c["start"] - start) < 1.0 for c in candidates):
-                        candidates.append({"start": start, "end": end})
-                    start += 7.0
-            return candidates
-
-        import re
-        def extract_transcript_slice(raw_tr, start, end):
-            lines = []
-            pattern = re.compile(r"\[([\d.]+)\s*s\s*->\s*([\d.]+)\s*s\]\s*(.*)")
-            for line in raw_tr.split("\n"):
-                m = pattern.match(line)
-                if m:
-                    t_start = float(m.group(1))
-                    t_end = float(m.group(2))
-                    text = m.group(3)
-                    if not (t_end < start or t_start > end):
-                        lines.append(text)
-            return " ".join(lines)
-
-        candidates = generate_candidate_segments(scene_analysis, video_duration)
-        segments_to_score = []
-        for idx, cand in enumerate(candidates[:15]):
-            t_slice = extract_transcript_slice(raw_transcript, cand["start"], cand["end"])
-            segments_to_score.append({
-                "segment_id": idx + 1,
-                "start_time": round(cand["start"], 2),
-                "end_time": round(cand["end"], 2),
-                "transcript_slice": t_slice
-            })
-
-        if video_duration > CLIP_TARGET_DURATION and segments_to_score:
-            logger.info(f"Generated {len(segments_to_score)} candidate segments. Running segment-based AI evaluation...")
+        if video_duration > CLIP_TARGET_DURATION:
+            logger.info("Video longer than 7s. Requesting AI to find the most engaging clip...")
             select_prompt = f"""
-You are an expert movie editor who creates viral, high-retention clips for YouTube Shorts and Reels.
-Analyze the following list of candidate segments from the movie clip: "{title}".
+You are an expert social media video editor for YouTube Shorts.
+Select the single most engaging, visually exciting, or viral ~{int(CLIP_TARGET_DURATION)} second continuous portion of this movie clip.
+It must be the part that grabs attention instantly (action peak, surprising moment, iconic dialogue, dramatic twist).
+
+Total Video Duration: {video_duration:.2f} seconds
+
+Video Title: {title}
 Channel: {channel}
 Description: {description}
 
-For each segment, calculate an engagement score (0 to 100) based on these guidelines:
-- Fight/Action scene: 90-100 (Very High)
-- Suspense/Twist: 85-95 (Very High)
-- Emotional Confrontation / Drama: 75-85 (High)
-- Funny / Unexpected / Shocking Moment: 75-85 (High)
-- Chase / Accident: 70-80 (High)
-- Strong Reaction / Expression: 70-80 (High)
-- Important dialogue / revelation: 60-70 (Medium)
-- Normal Conversation: 30-50 (Low)
-- Walking, silent action, establishing shot: 10-20 (Very Low)
-- Long, slow, boring dialogue or background scene: 0 (Reject)
+Timeline and Scene Analysis:
+{json.dumps(scene_analysis[:30], indent=2)}
 
-Also, perform intelligent hook trimming: identify where the actual "interesting action/shocking event/climax" starts in the segment.
-If it starts later (e.g., the segment has 5 seconds of quiet conversation then an explosion), specify a custom `trimmed_start_time` that starts exactly 1-2 seconds BEFORE the interesting event, and a duration of 4 to 10 seconds. If the segment is already fully engaging from the start, the `trimmed_start_time` can be the same as the segment's start_time.
+Transcript with Timestamps:
+{raw_transcript[:2500]}
 
-List of candidate segments to evaluate:
-{json.dumps(segments_to_score, indent=2)}
-
-Return ONLY a valid JSON object containing an array of segment scores and their trims.
-Example response format:
-{{
-  "evaluations": [
-    {{
-      "segment_id": 1,
-      "engagement_score": 85,
-      "reason": "Dramatic confrontation with high emotional dialogue.",
-      "trimmed_start_time": 12.5,
-      "trimmed_duration": 7.0
-    }}
-  ]
-}}
+Return ONLY a valid JSON object with keys "start_time" and "duration" (seconds as floats).
+The duration MUST be between 4.0 and {CLIP_MAX_DURATION} seconds (target ~{CLIP_TARGET_DURATION}s).
+Also make sure start_time + duration <= total video duration.
+Example response:
+{{"start_time": 12.5, "duration": {CLIP_TARGET_DURATION}}}
 Do not output any explanation or extra text.
 """
             try:
-                llm_response = await run_llm(client, select_prompt, temperature=0.3, max_tokens=1500)
-                logger.info(f"AI segment evaluation response: {llm_response}")
+                llm_response = await run_llm(client, select_prompt, temperature=0.3, max_tokens=100)
+                logger.info(f"AI clip selection response: {llm_response}")
                 clean_json = llm_response.replace("```json", "").replace("```", "").strip()
                 data = json.loads(clean_json)
-                evaluations = data.get("evaluations", [])
-                
-                # Find the highest scoring segment
-                best_eval = None
-                for ev in evaluations:
-                    if best_eval is None or ev.get("engagement_score", 0) > best_eval.get("engagement_score", 0):
-                        best_eval = ev
-                
-                if best_eval:
-                    logger.success(f"Best segment chosen: ID {best_eval.get('segment_id')} (Score: {best_eval.get('engagement_score')}, Reason: {best_eval.get('reason')})")
-                    clip_start = float(best_eval.get("trimmed_start_time", 0.0))
-                    clip_duration = float(best_eval.get("trimmed_duration", CLIP_TARGET_DURATION))
-                else:
-                    logger.warning("No evaluations returned, defaulting to first candidate segment.")
-                    clip_start = candidates[0]["start"]
-                    clip_duration = min(CLIP_TARGET_DURATION, candidates[0]["end"] - candidates[0]["start"])
+                clip_start = float(data.get("start_time", 0.0))
+                clip_duration = float(data.get("duration", CLIP_TARGET_DURATION))
+
+                if clip_start < 0 or clip_start >= video_duration:
+                    clip_start = 0.0
+                if clip_duration < 4.0 or clip_duration > CLIP_MAX_DURATION:
+                    clip_duration = CLIP_TARGET_DURATION
+                if clip_start + clip_duration > video_duration:
+                    clip_duration = max(4.0, video_duration - clip_start)
             except Exception as e:
-                logger.warning(f"Failed to parse AI segment selection: {e}")
+                logger.warning(f"Failed to parse AI clip selection, defaulting to first {CLIP_TARGET_DURATION}s: {e}")
                 clip_start = 0.0
                 clip_duration = min(CLIP_TARGET_DURATION, video_duration)
-
-            if clip_start < 0 or clip_start >= video_duration:
-                clip_start = 0.0
-            if clip_duration < 4.0 or clip_duration > CLIP_MAX_DURATION:
-                clip_duration = CLIP_TARGET_DURATION
-            if clip_start + clip_duration > video_duration:
-                clip_duration = max(4.0, video_duration - clip_start)
 
         logger.info(f"Selected clip window: start={clip_start:.2f}s, duration={clip_duration:.2f}s")
 
