@@ -25,12 +25,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Debug nodejs installation
+      - name: Upgrade Node.js to v22
         run: |
+          apt-get update && apt-get install -y curl
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y nodejs
+          node --version
           pip install -U yt-dlp
           yt-dlp --version
-          node --version
-          python -c "import inspect; from yt_dlp.utils import _jsruntime; print(inspect.getsource(_jsruntime))"
 
       # Downloader Agent (YouTube)
       - name: Run YouTube Downloader Agent
