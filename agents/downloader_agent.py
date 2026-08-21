@@ -105,6 +105,23 @@ def canonical_url(video_id: str) -> str:
     return f"https://www.youtube.com/watch?v={video_id}"
 
 
+def normalize_url(url: str) -> str:
+    """Normalize YouTube URLs to their canonical form to prevent duplicates."""
+    import urllib.parse
+    if not url:
+        return url
+    if "youtube.com/watch" in url:
+        parsed = urllib.parse.urlparse(url)
+        qs = urllib.parse.parse_qs(parsed.query)
+        if 'v' in qs:
+            return f"https://www.youtube.com/watch?v={qs['v'][0]}"
+    elif "youtu.be/" in url:
+        parsed = urllib.parse.urlparse(url)
+        video_id = parsed.path.lstrip('/')
+        return f"https://www.youtube.com/watch?v={video_id}"
+    return url
+
+
 def _entry_url(e: dict, is_youtube: bool) -> str:
     """Build a usable download URL for a resolved entry."""
     url = e.get("webpage_url") or e.get("url") or e.get("original_url")
@@ -257,7 +274,7 @@ Return ONLY the plain text search query, with no quotes, no explanation, and no 
     skipped_already_processed = []
     
     for video in search_results:
-        target_url = video["url"]
+        target_url = normalize_url(video["url"])
         if target_url in processed_urls:
             skipped_already_processed.append(video)
             continue
