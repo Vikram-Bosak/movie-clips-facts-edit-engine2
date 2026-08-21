@@ -36,7 +36,12 @@ jobs:
         env:
           GOOGLE_SHEET_ID: 1jT0jE0_uRAWHZdmP8cNpZXeaMWA-TKDg0Y-9r4R1e3o
           GDRIVE_OAUTH_TOKEN: ${{ secrets.GDRIVE_OAUTH_TOKEN }}
-        run: python agents/downloader_agent.py
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
+        run: |
+          if [ -n "$YOUTUBE_COOKIES" ]; then
+            echo "$YOUTUBE_COOKIES" > cookies.txt
+          fi
+          python agents/downloader_agent.py
 
       # Video Analysis Agent (7s clip + interesting facts)
       - name: Run Video Analysis Agent
