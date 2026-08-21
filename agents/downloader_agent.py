@@ -75,19 +75,19 @@ def get_video_from_sheet(sheet_id, sheet_name=None):
             
         headers = values[0]
         try:
-            link_idx = headers.index("Link")
+            link_idx = headers.index("Video Link")
         except ValueError:
-            link_idx = next((i for i, v in enumerate(headers) if v.lower() == "link"), -1)
+            link_idx = next((i for i, v in enumerate(headers) if "link" in v.lower()), -1)
             
         try:
             status_idx = headers.index("Status")
         except ValueError:
-            status_idx = next((i for i, v in enumerate(headers) if v.lower() == "status"), -1)
+            status_idx = next((i for i, v in enumerate(headers) if "status" in v.lower()), -1)
             
         try:
-            title_idx = headers.index("Title")
+            title_idx = headers.index("Video Title")
         except ValueError:
-            title_idx = next((i for i, v in enumerate(headers) if v.lower() == "title"), -1)
+            title_idx = next((i for i, v in enumerate(headers) if "title" in v.lower()), -1)
             
         if link_idx == -1 or status_idx == -1:
             logger.error("Required columns 'Link' and 'Status' not found in Google Sheet.")
