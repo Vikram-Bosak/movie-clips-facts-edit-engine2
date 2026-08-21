@@ -311,18 +311,21 @@ async def download_video():
     skipped_already_processed = []
     candidates = []
 
+    candidates = []
+    candidates = []
     if sheet_video:
         logger.info(f"Found unedited video in Google Sheet: {sheet_video['title']} ({sheet_video['url']})")
         candidates = [{"url": sheet_video["url"], "title": sheet_video["title"], "is_from_sheet": True, "sheet_info": sheet_video}]
-    else:
+        
+    if not candidates:
         # Generate search query dynamically using Llama-3.1-70b-instruct
         import urllib.parse
         import random
         
         logger.info("Generating dynamic movie scene search query with AI...")
         client = make_client()
-    
-    prompt = """
+        
+        prompt = """
 You are an expert movie content curator for viral social media channels (YouTube Shorts, TikTok).
 Generate a single highly engaging, specific search query for a famous Hollywood movie scene on YouTube.
 The query should target a specific, highly intense action peak, epic fight, dramatic confrontation, suspenseful climax, shocking twist, or iconic movie moment.
@@ -336,132 +339,132 @@ Examples:
 
 Return ONLY the plain text search query, with no quotes, no explanation, and no extra text.
 """
-    try:
-        studios_query = await run_llm(client, prompt, temperature=0.7, max_tokens=100)
-        studios_query = studios_query.strip().strip('"').strip("'")
-        if not studios_query:
-            raise ValueError("Empty response from AI")
-    except Exception as e:
-        logger.warning(f"Failed to generate query with AI: {e}. Falling back to default list.")
-        fallback_queries = [
-            "best intense movie scenes",
-            "epic fight scene movie clips",
-            "action thriller movie confrontation scenes",
-            "dramatic movie confrontation clips",
-            "most shocking movie endings clips"
-        ]
-        studios_query = random.choice(fallback_queries)
+        try:
+            studios_query = await run_llm(client, prompt, temperature=0.7, max_tokens=100)
+            studios_query = studios_query.strip().strip('"').strip("'")
+            if not studios_query:
+                raise ValueError("Empty response from AI")
+        except Exception as e:
+            logger.warning(f"Failed to generate query with AI: {e}. Falling back to default list.")
+            fallback_queries = [
+                "best intense movie scenes",
+                "epic fight scene movie clips",
+                "action thriller movie confrontation scenes",
+                "dramatic movie confrontation clips",
+                "most shocking movie endings clips"
+            ]
+            studios_query = random.choice(fallback_queries)
+            
+        encoded_query = urllib.parse.quote_plus(studios_query)
+        search_url = f"https://www.youtube.com/results?search_query={encoded_query}"
+        logger.info(f"Searching YouTube with AI-generated query: {studios_query} (URL: {search_url})")
         
-    encoded_query = urllib.parse.quote_plus(studios_query)
-    search_url = f"https://www.youtube.com/results?search_query={encoded_query}"
-    logger.info(f"Searching YouTube with AI-generated query: {studios_query} (URL: {search_url})")
-    
-    search_results = await resolve_entries(search_url)
-    if not search_results:
-        logger.error("No search results returned from YouTube.")
-        sys.exit(1)
+        search_results = await resolve_entries(search_url)
+        if not search_results:
+            logger.error("No search results returned from YouTube.")
+            sys.exit(1)
+            
+        now = datetime.now(timezone.utc)
+        from datetime import timedelta
         
-    now = datetime.now(timezone.utc)
-    from datetime import timedelta
-    
-    hourly_studio = []
-    daily_studio = []
-    other_studio = []
-    
-    hourly_other = []
-    daily_other = []
-    other_other = []
-    
-    skipped_already_processed = []
-    
-    for video in search_results:
-        target_url = normalize_url(video["url"])
-        if target_url in processed_urls:
-            skipped_already_processed.append(video)
-            continue
-            
-        # Strict Hollywood Filter: Skip Bollywood/Tollywood/Indian regional content
-        indian_keywords = ["india", "bollywood", "tollywood", "kollywood", "hindi", "tamil", "telugu", "malayalam", "kannada", "punjabi", "bhojpuri"]
-        title_lower = (video.get("title") or "").lower()
-        channel_lower = (video.get("channel") or "").lower()
-        description_lower = (video.get("description") or "").lower()
+        hourly_studio = []
+        daily_studio = []
+        other_studio = []
         
-        is_indian = False
-        for kw in indian_keywords:
-            if kw in title_lower or kw in channel_lower or kw in description_lower:
-                is_indian = True
-                break
-        if is_indian:
-            logger.info(f"Skipping Indian/regional content: {video.get('title')} (Channel: {video.get('channel')})")
-            continue
-            
-        # Filter by duration under 240s
-        dur = video.get("duration")
-        if dur and float(dur) > 240:
-            continue
-            
-        # Check if uploader belongs to the allowed Hollywood clip channels
-        studios = ["movieclips", "joblo", "filmisnow", "kinocheck"]
-        channel_name = (video.get("channel") or "").lower()
-        is_studio = any(s in channel_name for s in studios)
-            
-        # Check if hourly (last 1 hour)
-        is_hourly = False
-        ts = video.get("timestamp")
-        if ts:
-            try:
-                dt = datetime.fromtimestamp(ts, timezone.utc)
-                if now - dt <= timedelta(hours=1):
-                    is_hourly = True
-            except Exception:
-                pass
+        hourly_other = []
+        daily_other = []
+        other_other = []
+        
+        skipped_already_processed = []
+        
+        for video in search_results:
+            target_url = normalize_url(video["url"])
+            if target_url in processed_urls:
+                skipped_already_processed.append(video)
+                continue
                 
-        # Check if daily (today)
-        is_daily = False
-        ud = video.get("upload_date")
-        if ud:
-            try:
-                dt = datetime.strptime(ud, "%Y%m%d").replace(tzinfo=timezone.utc)
-                if dt.date() == now.date():
-                    is_daily = True
-            except Exception:
-                pass
+            # Strict Hollywood Filter: Skip Bollywood/Tollywood/Indian regional content
+            indian_keywords = ["india", "bollywood", "tollywood", "kollywood", "hindi", "tamil", "telugu", "malayalam", "kannada", "punjabi", "bhojpuri"]
+            title_lower = (video.get("title") or "").lower()
+            channel_lower = (video.get("channel") or "").lower()
+            description_lower = (video.get("description") or "").lower()
+            
+            is_indian = False
+            for kw in indian_keywords:
+                if kw in title_lower or kw in channel_lower or kw in description_lower:
+                    is_indian = True
+                    break
+            if is_indian:
+                logger.info(f"Skipping Indian/regional content: {video.get('title')} (Channel: {video.get('channel')})")
+                continue
                 
-        if is_studio:
-            if is_hourly:
-                hourly_studio.append(video)
-            elif is_daily:
-                daily_studio.append(video)
+            # Filter by duration under 240s
+            dur = video.get("duration")
+            if dur and float(dur) > 240:
+                continue
+                
+            # Check if uploader belongs to the allowed Hollywood clip channels
+            studios = ["movieclips", "joblo", "filmisnow", "kinocheck"]
+            channel_name = (video.get("channel") or "").lower()
+            is_studio = any(s in channel_name for s in studios)
+                
+            # Check if hourly (last 1 hour)
+            is_hourly = False
+            ts = video.get("timestamp")
+            if ts:
+                try:
+                    dt = datetime.fromtimestamp(ts, timezone.utc)
+                    if now - dt <= timedelta(hours=1):
+                        is_hourly = True
+                except Exception:
+                    pass
+                    
+            # Check if daily (today)
+            is_daily = False
+            ud = video.get("upload_date")
+            if ud:
+                try:
+                    dt = datetime.strptime(ud, "%Y%m%d").replace(tzinfo=timezone.utc)
+                    if dt.date() == now.date():
+                        is_daily = True
+                except Exception:
+                    pass
+                    
+            if is_studio:
+                if is_hourly:
+                    hourly_studio.append(video)
+                elif is_daily:
+                    daily_studio.append(video)
+                else:
+                    other_studio.append(video)
             else:
-                other_studio.append(video)
-        else:
-            if is_hourly:
-                hourly_other.append(video)
-            elif is_daily:
-                daily_other.append(video)
-            else:
-                other_other.append(video)
-                
-    # Priority Selection
-    if hourly_studio:
-        candidates = hourly_studio
-        logger.info(f"Priority 1 (Studio): Found {len(hourly_studio)} target channel clips uploaded in the last hour.")
-    elif daily_studio:
-        candidates = daily_studio
-        logger.info(f"Priority 2 (Studio): Found {len(daily_studio)} target channel clips uploaded today.")
-    elif other_studio:
-        candidates = other_studio
-        logger.info(f"Priority 3 (Studio): Using {len(other_studio)} recent target channel clips.")
-    elif hourly_other:
-        candidates = hourly_other
-        logger.info(f"Priority 4 (Broad): No target studio clips. Found {len(hourly_other)} broad YouTube clips uploaded in the last hour.")
-    elif daily_other:
-        candidates = daily_other
-        logger.info(f"Priority 5 (Broad): No target studio clips. Found {len(daily_other)} broad YouTube clips uploaded today.")
-    elif other_other:
-        candidates = other_other
-        logger.info(f"Priority 6 (Broad): No target studio clips. Using {len(other_other)} broad YouTube clips.")
-        
+                if is_hourly:
+                    hourly_other.append(video)
+                elif is_daily:
+                    daily_other.append(video)
+                else:
+                    other_other.append(video)
+                    
+        # Priority Selection
+        if hourly_studio:
+            candidates = hourly_studio
+            logger.info(f"Priority 1 (Studio): Found {len(hourly_studio)} target channel clips uploaded in the last hour.")
+        elif daily_studio:
+            candidates = daily_studio
+            logger.info(f"Priority 2 (Studio): Found {len(daily_studio)} target channel clips uploaded today.")
+        elif other_studio:
+            candidates = other_studio
+            logger.info(f"Priority 3 (Studio): Using {len(other_studio)} recent target channel clips.")
+        elif hourly_other:
+            candidates = hourly_other
+            logger.info(f"Priority 4 (Broad): No target studio clips. Found {len(hourly_other)} broad YouTube clips uploaded in the last hour.")
+        elif daily_other:
+            candidates = daily_other
+            logger.info(f"Priority 5 (Broad): No target studio clips. Found {len(daily_other)} broad YouTube clips uploaded today.")
+        elif other_other:
+            candidates = other_other
+            logger.info(f"Priority 6 (Broad): No target studio clips. Using {len(other_other)} broad YouTube clips.")
+            
         if not candidates:
             logger.warning("No new, unprocessed videos found in search results. Skipping this run to prevent duplicate content.")
             sys.exit(0)
