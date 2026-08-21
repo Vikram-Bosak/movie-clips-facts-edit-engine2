@@ -48,8 +48,30 @@ def load_history():
     return set()
 
 def get_sheets_service():
+    scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+    
+    token_str = os.environ.get("GDRIVE_OAUTH_TOKEN")
+    if token_str:
+        try:
+            token_data = json.loads(token_str)
+            if token_data.get("type") == "service_account":
+                from google.oauth2 import service_account
+                creds = service_account.Credentials.from_service_account_info(token_data, scopes=scopes)
+                return build('sheets', 'v4', credentials=creds)
+            else:
+                from google.auth.transport.requests import Request
+                creds = Credentials.from_authorized_user_info(token_data, scopes)
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                return build('sheets', 'v4', credentials=creds)
+        except Exception as e:
+            logger.error(f"Failed to load credentials from GDRIVE_OAUTH_TOKEN: {e}")
+
     if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets'])
+        from google.auth.transport.requests import Request
+        creds = Credentials.from_authorized_user_file('token.json', scopes)
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
         return build('sheets', 'v4', credentials=creds)
     return None
 
@@ -325,7 +347,7 @@ async def download_video():
         
     if not candidates:
         logger.warning("No new, unedited videos found in Google Sheet. Exiting.")
-        sys.exit(0)
+        sys.exit(2)
 
     os.makedirs("downloads", exist_ok=True)
     video_id = str(uuid.uuid4())
