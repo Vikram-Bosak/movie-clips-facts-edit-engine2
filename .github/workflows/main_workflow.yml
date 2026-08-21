@@ -28,6 +28,7 @@ jobs:
       - name: Log Environment Versions
         run: |
           node --version
+          pip install -U yt-dlp
           yt-dlp --version
 
       # Downloader Agent (YouTube)
