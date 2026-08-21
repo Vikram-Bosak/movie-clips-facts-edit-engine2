@@ -3,6 +3,7 @@
 # API Keys and Config
 export NVIDIA_API_KEY="${NVIDIA_API_KEY:-}"
 export GOOGLE_SHEET_ID="1jT0jE0_uRAWHZdmP8cNpZXeaMWA-TKDg0Y-9r4R1e3o"
+export GDRIVE_FOLDER_ID="${GDRIVE_FOLDER_ID:-1yvO0w9wiM5HrrhHgvQngKElxYS0G92BG}"
 
 echo "=========================================="
 echo "🔄 Starting Continuous 24/7 Editing Engine"
