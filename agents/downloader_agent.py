@@ -113,13 +113,19 @@ def get_video_from_sheet(sheet_id, sheet_name=None):
         logger.error(f"Error accessing Google Sheets API: {e}")
         return None
 
-def mark_video_as_edited(sheet_id, sheet_name, row_index, col_letter):
+def mark_video_as_edited(sheet_id, row_index, status_col_letter, sheet_name=None):
     service = get_sheets_service()
     if not service:
-        return
+        return False
         
     try:
-        range_name = f"{sheet_name}!{col_letter}{row_index}"
+        sheet = service.spreadsheets()
+        
+        if not sheet_name:
+            sheet_meta = sheet.get(spreadsheetId=sheet_id).execute()
+            sheet_name = sheet_meta['sheets'][0]['properties']['title']
+            
+        range_name = f"{sheet_name}!{status_col_letter}{row_index}"
         body = {
             'values': [["Video Edited"]]
         }
@@ -508,7 +514,7 @@ Return ONLY the plain text search query, with no quotes, no explanation, and no 
                 logger.info(f"Metadata: title='{metadata.get('title')}', channel='{metadata.get('uploader')}', duration={metadata.get('duration')}s")
 
                 if video.get("is_from_sheet") and sheet_id:
-                    mark_video_as_edited(sheet_id, sheet_name, video["sheet_info"]["row_index"], video["sheet_info"]["status_col"])
+                    mark_video_as_edited(sheet_id, video["sheet_info"]["row_index"], video["sheet_info"]["status_col"], sheet_name=sheet_name)
 
                 run_metrics = {
                     "downloaded": [{"url": target_url, "title": metadata.get("title") or video.get("title") or "Untitled"}],
