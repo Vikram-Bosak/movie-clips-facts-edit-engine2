@@ -356,8 +356,19 @@ async def download_video():
     failed_downloads = []
     for video in candidates:
         target_url = video["url"]
-        logger.info(f"Attempting to download {target_url} - {video.get('title')}")
-
+        title = video.get("title")
+        
+        # Extract video ID
+        vid = ""
+        if "v=" in target_url:
+            vid = target_url.split("v=")[1].split("&")[0]
+        elif "youtu.be/" in target_url:
+            vid = target_url.split("youtu.be/")[1].split("?")[0]
+        
+        output_path = f"downloads/{vid if vid else video_id}.mp4"
+        
+        logger.info(f"Attempting to download {target_url} - {title}")
+        
         command = [
             "yt-dlp",
             "--no-check-certificates",
@@ -369,7 +380,7 @@ async def download_video():
             "--merge-output-format", "mp4",
             "--quiet",
         ] + get_cookie_flags() + [target_url]
-
+        
         try:
             proc = await asyncio.create_subprocess_exec(
                 *command,
@@ -377,9 +388,37 @@ async def download_video():
                 stderr=asyncio.subprocess.PIPE
             )
             stdout, stderr = await proc.communicate()
+            
+            success = (proc.returncode == 0 and os.path.exists(output_path))
+            
+            if not success:
+                error_msg = stderr.decode().strip() or "Unknown download error"
+                logger.warning(f"yt-dlp failed for {target_url}: {error_msg}. Attempting fallback search...")
+                
+                fallback_command = [
+                    "yt-dlp",
+                    "--no-check-certificates",
+                    "--js-runtimes", "node",
+                    "--remote-components", "ejs:github",
+                    "--match-filter", "duration <= 240",
+                    "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
+                    "--output", output_path,
+                    "--merge-output-format", "mp4",
+                    "--quiet",
+                ] + get_cookie_flags() + [f"ytsearch1:{title}"]
+                
+                f_proc = await asyncio.create_subprocess_exec(
+                    *fallback_command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                f_stdout, f_stderr = await f_proc.communicate()
+                success = (f_proc.returncode == 0 and os.path.exists(output_path))
+                if not success:
+                    logger.warning(f"Fallback also failed: {f_stderr.decode().strip() or 'Unknown'}")
 
-            if proc.returncode == 0 and os.path.exists(output_path):
-                logger.success(f"Download successful! Video ID: {video_id}")
+            if success:
+                logger.info(f"Download successful! Video ID: {video_id}")
 
                 save_history(target_url)
 
