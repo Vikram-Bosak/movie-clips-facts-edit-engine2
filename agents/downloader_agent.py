@@ -360,6 +360,7 @@ async def download_video():
 
         command = [
             "yt-dlp",
+            "--force-ipv4",
             "--extractor-args", "youtube:player_client=default,web",
             "--no-check-certificates",
             "--js-runtimes", "node",
