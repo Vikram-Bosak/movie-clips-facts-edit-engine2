@@ -2,7 +2,7 @@ import os
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 def authenticate():
-    scopes = ['https://www.googleapis.com/auth/drive']
+    scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
     credentials_path = "credentials.json"
     token_path = "token.json"
 

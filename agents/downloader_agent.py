@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from loguru import logger
 from memory_agent import async_update_memory
 from openai import OpenAI
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
 
 # Track downloaded videos locally and persist to git history.txt
 HISTORY_FILE = "history.txt"
@@ -44,6 +46,84 @@ def load_history():
         with open(HISTORY_FILE, "r", encoding="utf-8") as f:
             return set(line.strip() for line in f if line.strip())
     return set()
+
+def get_sheets_service():
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets'])
+        return build('sheets', 'v4', credentials=creds)
+    return None
+
+def get_video_from_sheet(sheet_id, sheet_name="Sheet1"):
+    service = get_sheets_service()
+    if not service:
+        logger.warning("Google Sheets credentials not found. Ensure token.json exists.")
+        return None
+    
+    try:
+        sheet = service.spreadsheets()
+        result = sheet.values().get(spreadsheetId=sheet_id, range=sheet_name).execute()
+        values = result.get('values', [])
+        
+        if not values:
+            logger.info("No data found in Google Sheet.")
+            return None
+            
+        headers = values[0]
+        try:
+            link_idx = headers.index("Link")
+        except ValueError:
+            link_idx = next((i for i, v in enumerate(headers) if v.lower() == "link"), -1)
+            
+        try:
+            status_idx = headers.index("Status")
+        except ValueError:
+            status_idx = next((i for i, v in enumerate(headers) if v.lower() == "status"), -1)
+            
+        try:
+            title_idx = headers.index("Title")
+        except ValueError:
+            title_idx = next((i for i, v in enumerate(headers) if v.lower() == "title"), -1)
+            
+        if link_idx == -1 or status_idx == -1:
+            logger.error("Required columns 'Link' and 'Status' not found in Google Sheet.")
+            return None
+            
+        for i, row in enumerate(values):
+            if i == 0:
+                continue
+                
+            status = row[status_idx] if len(row) > status_idx else ""
+            if status != "Video Edited":
+                link = row[link_idx] if len(row) > link_idx else ""
+                title = row[title_idx] if title_idx != -1 and len(row) > title_idx else ""
+                
+                if link:
+                    # Return 1-indexed row number for A1 notation update (header is row 1)
+                    return {"url": link, "title": title, "row_index": i + 1, "status_col": chr(65 + status_idx)}
+                    
+        logger.info("All videos in Google Sheet are marked as 'Video Edited'.")
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error accessing Google Sheets API: {e}")
+        return None
+
+def mark_video_as_edited(sheet_id, sheet_name, row_index, col_letter):
+    service = get_sheets_service()
+    if not service:
+        return
+        
+    try:
+        range_name = f"{sheet_name}!{col_letter}{row_index}"
+        body = {
+            'values': [["Video Edited"]]
+        }
+        service.spreadsheets().values().update(
+            spreadsheetId=sheet_id, range=range_name,
+            valueInputOption="USER_ENTERED", body=body).execute()
+        logger.success(f"Updated Google Sheet status to 'Video Edited' at {range_name}")
+    except Exception as e:
+        logger.error(f"Error updating Google Sheet: {e}")
 
 
 def save_history(url: str):
@@ -214,12 +294,28 @@ async def download_video():
 
     processed_urls = load_history()
     
-    # Generate search query dynamically using Llama-3.1-70b-instruct
-    import urllib.parse
-    import random
+    sheet_id = os.environ.get("GOOGLE_SHEET_ID")
+    sheet_name = os.environ.get("GOOGLE_SHEET_NAME", "Sheet1")
     
-    logger.info("Generating dynamic movie scene search query with AI...")
-    client = make_client()
+    sheet_video = None
+    if sheet_id:
+        logger.info(f"GOOGLE_SHEET_ID is set. Checking Google Sheet for unedited videos...")
+        sheet_video = get_video_from_sheet(sheet_id, sheet_name)
+        
+    failed_downloads = []
+    skipped_already_processed = []
+    candidates = []
+
+    if sheet_video:
+        logger.info(f"Found unedited video in Google Sheet: {sheet_video['title']} ({sheet_video['url']})")
+        candidates = [{"url": sheet_video["url"], "title": sheet_video["title"], "is_from_sheet": True, "sheet_info": sheet_video}]
+    else:
+        # Generate search query dynamically using Llama-3.1-70b-instruct
+        import urllib.parse
+        import random
+        
+        logger.info("Generating dynamic movie scene search query with AI...")
+        client = make_client()
     
     prompt = """
 You are an expert movie content curator for viral social media channels (YouTube Shorts, TikTok).
@@ -342,7 +438,6 @@ Return ONLY the plain text search query, with no quotes, no explanation, and no 
                 other_other.append(video)
                 
     # Priority Selection
-    candidates = []
     if hourly_studio:
         candidates = hourly_studio
         logger.info(f"Priority 1 (Studio): Found {len(hourly_studio)} target channel clips uploaded in the last hour.")
@@ -362,9 +457,9 @@ Return ONLY the plain text search query, with no quotes, no explanation, and no 
         candidates = other_other
         logger.info(f"Priority 6 (Broad): No target studio clips. Using {len(other_other)} broad YouTube clips.")
         
-    if not candidates:
-        logger.warning("No new, unprocessed videos found in search results. Skipping this run to prevent duplicate content.")
-        sys.exit(0)
+        if not candidates:
+            logger.warning("No new, unprocessed videos found in search results. Skipping this run to prevent duplicate content.")
+            sys.exit(0)
 
     os.makedirs("downloads", exist_ok=True)
     video_id = str(uuid.uuid4())
@@ -404,6 +499,9 @@ Return ONLY the plain text search query, with no quotes, no explanation, and no 
                 metadata = await fetch_full_metadata(target_url)
                 logger.info(f"Metadata: title='{metadata.get('title')}', channel='{metadata.get('uploader')}', duration={metadata.get('duration')}s")
 
+                if video.get("is_from_sheet") and sheet_id:
+                    mark_video_as_edited(sheet_id, sheet_name, video["sheet_info"]["row_index"], video["sheet_info"]["status_col"])
+
                 run_metrics = {
                     "downloaded": [{"url": target_url, "title": metadata.get("title") or video.get("title") or "Untitled"}],
                     "skipped": [{"url": x["url"], "title": x.get("title") or "Untitled", "reason": "Already processed in history"} for x in skipped_already_processed],
@@ -440,3 +538,5 @@ Return ONLY the plain text search query, with no quotes, no explanation, and no 
 
 if __name__ == "__main__":
     asyncio.run(download_video())
+
+

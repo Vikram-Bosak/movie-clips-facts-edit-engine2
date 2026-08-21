@@ -2,6 +2,7 @@
 
 # API Keys and Config
 export NVIDIA_API_KEY="${NVIDIA_API_KEY:-}"
+export GOOGLE_SHEET_ID="1jT0jE0_uRAWHZdmP8cNpZXeaMWA-TKDg0Y-9r4R1e3o"
 
 echo "=========================================="
 echo "🎬 Starting Movie Clips & Facts Editing Pipeline"
