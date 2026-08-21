@@ -53,7 +53,7 @@ def get_sheets_service():
         return build('sheets', 'v4', credentials=creds)
     return None
 
-def get_video_from_sheet(sheet_id, sheet_name="Sheet1"):
+def get_video_from_sheet(sheet_id, sheet_name=None):
     service = get_sheets_service()
     if not service:
         logger.warning("Google Sheets credentials not found. Ensure token.json exists.")
@@ -61,6 +61,11 @@ def get_video_from_sheet(sheet_id, sheet_name="Sheet1"):
     
     try:
         sheet = service.spreadsheets()
+        
+        if not sheet_name:
+            sheet_meta = sheet.get(spreadsheetId=sheet_id).execute()
+            sheet_name = sheet_meta['sheets'][0]['properties']['title']
+            
         result = sheet.values().get(spreadsheetId=sheet_id, range=sheet_name).execute()
         values = result.get('values', [])
         
@@ -295,7 +300,7 @@ async def download_video():
     processed_urls = load_history()
     
     sheet_id = os.environ.get("GOOGLE_SHEET_ID")
-    sheet_name = os.environ.get("GOOGLE_SHEET_NAME", "Sheet1")
+    sheet_name = os.environ.get("GOOGLE_SHEET_NAME")
     
     sheet_video = None
     if sheet_id:
