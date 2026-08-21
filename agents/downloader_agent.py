@@ -247,7 +247,7 @@ def _entry_url(e: dict, is_youtube: bool) -> str:
 
 async def resolve_entries(url: str):
     """Resolve a single video or playlist URL into a list of video entries."""
-    cmd = ["yt-dlp", "--extractor-args", "youtube:player_client=default,web", "--js-runtimes", "node", "--remote-components", "ejs:github", "--flat-playlist", "--playlist-end", "30", "--skip-download", "-J"] + get_cookie_flags() + [url]
+    cmd = ["yt-dlp",  "--js-runtimes", "node", "--remote-components", "ejs:github", "--flat-playlist", "--playlist-end", "30", "--skip-download", "-J"] + get_cookie_flags() + [url]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -305,7 +305,7 @@ async def resolve_entries(url: str):
 
 async def fetch_full_metadata(video_url: str):
     """Fetch full metadata (title, description, channel, duration) for a video."""
-    cmd = ["yt-dlp", "--extractor-args", "youtube:player_client=default,web", "--js-runtimes", "node", "--remote-components", "ejs:github", "--skip-download", "-J"] + get_cookie_flags() + [video_url]
+    cmd = ["yt-dlp",  "--js-runtimes", "node", "--remote-components", "ejs:github", "--skip-download", "-J"] + get_cookie_flags() + [video_url]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -361,7 +361,7 @@ async def download_video():
         command = [
             "yt-dlp",
             "--force-ipv4",
-            "--extractor-args", "youtube:player_client=default,web",
+            
             "--no-check-certificates",
             "--js-runtimes", "node",
             "--remote-components", "ejs:github",
