@@ -59,16 +59,18 @@ def get_sheets_service():
                 creds = service_account.Credentials.from_service_account_info(token_data, scopes=scopes)
                 return build('sheets', 'v4', credentials=creds)
             else:
+                from google.oauth2.credentials import Credentials
                 from google.auth.transport.requests import Request
                 creds = Credentials.from_authorized_user_info(token_data, scopes)
                 if creds and creds.expired and creds.refresh_token:
                     creds.refresh(Request())
                 return build('sheets', 'v4', credentials=creds)
         except Exception as e:
-            logger.error(f"Failed to load credentials from GDRIVE_OAUTH_TOKEN: {e}")
+            logger.error(f"Failed to parse GDRIVE_OAUTH_TOKEN for Sheets API: {e}")
 
     if os.path.exists('token.json'):
         from google.auth.transport.requests import Request
+        from google.oauth2.credentials import Credentials
         creds = Credentials.from_authorized_user_file('token.json', scopes)
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
