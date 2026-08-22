@@ -389,6 +389,28 @@ async def download_video():
             
             success = (proc.returncode == 0 and os.path.exists(output_path))
             
+            if not success and ("reloaded" in stderr.decode() or "Sign in" in stderr.decode()):
+                logger.warning("Cookies might be expired or blocked. Retrying without cookies...")
+                command_no_cookies = [
+                    "yt-dlp",
+                    "--no-check-certificates",
+                    "--js-runtimes", "node",
+                    "--remote-components", "ejs:github",
+                    "--match-filter", "duration <= 240",
+                    "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
+                    "--output", output_path,
+                    "--merge-output-format", "mp4",
+                    "--quiet",
+                ] + [target_url]
+                
+                proc = await asyncio.create_subprocess_exec(
+                    *command_no_cookies,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await proc.communicate()
+                success = (proc.returncode == 0 and os.path.exists(output_path))
+
             if success:
                 logger.info(f"Download successful! Video ID: {video_id}")
 
