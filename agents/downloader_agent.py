@@ -398,7 +398,7 @@ async def download_video():
                     "--no-check-certificates",
                     "--js-runtimes", "node",
                     "--remote-components", "ejs:github",
-                    "--extractor-args", "youtube:player_client=android",
+                    "--extractor-args", "youtube:player_client=android_creator,android,web",
                     "--match-filter", "duration <= 600",
                     "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
                     "--output", output_path,
