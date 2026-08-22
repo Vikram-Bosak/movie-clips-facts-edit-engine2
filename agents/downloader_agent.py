@@ -339,8 +339,6 @@ async def download_video():
     skipped_already_processed = []
     candidates = []
 
-    candidates = []
-    candidates = []
     if sheet_video:
         logger.info(f"Found unedited video in Google Sheet: {sheet_video['title']} ({sheet_video['url']})")
         candidates = [{"url": sheet_video["url"], "title": sheet_video["title"], "is_from_sheet": True, "sheet_info": sheet_video}]
@@ -391,32 +389,6 @@ async def download_video():
             
             success = (proc.returncode == 0 and os.path.exists(output_path))
             
-            if not success:
-                error_msg = stderr.decode().strip() or "Unknown download error"
-                logger.warning(f"yt-dlp failed for {target_url}: {error_msg}. Attempting fallback search...")
-                
-                fallback_command = [
-                    "yt-dlp",
-                    "--no-check-certificates",
-                    "--js-runtimes", "node",
-                    "--remote-components", "ejs:github",
-                    "--match-filter", "duration <= 240",
-                    "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
-                    "--output", output_path,
-                    "--merge-output-format", "mp4",
-                    "--quiet",
-                ] + get_cookie_flags() + [f"ytsearch1:{title}"]
-                
-                f_proc = await asyncio.create_subprocess_exec(
-                    *fallback_command,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                f_stdout, f_stderr = await f_proc.communicate()
-                success = (f_proc.returncode == 0 and os.path.exists(output_path))
-                if not success:
-                    logger.warning(f"Fallback also failed: {f_stderr.decode().strip() or 'Unknown'}")
-
             if success:
                 logger.info(f"Download successful! Video ID: {video_id}")
 
