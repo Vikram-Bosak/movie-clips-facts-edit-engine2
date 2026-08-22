@@ -414,6 +414,32 @@ async def download_video():
                 stdout, stderr = await proc.communicate()
                 success = (proc.returncode == 0 and os.path.exists(output_path))
 
+            if not success and video.get("title"):
+                logger.warning(f"Direct download failed. Falling back to search using title: {video.get('title')}")
+                fallback_command = [
+                    "yt-dlp",
+                    "--no-check-certificates",
+                    "--js-runtimes", "node",
+                    "--remote-components", "ejs:github",
+                    "--extractor-args", "youtube:player_client=android_creator,android,web",
+                    "--match-filter", "duration <= 600",
+                    "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
+                    "--output", output_path,
+                    "--merge-output-format", "mp4",
+                    "--quiet",
+                ] + [f"ytsearch1:{video.get('title')}"]
+                
+                proc = await asyncio.create_subprocess_exec(
+                    *fallback_command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await proc.communicate()
+                success = (proc.returncode == 0 and os.path.exists(output_path))
+                if success:
+                    target_url = f"ytsearch1:{video.get('title')}"
+                    logger.success("Download via search fallback successful!")
+
             if success:
                 logger.info(f"Download successful! Video ID: {video_id}")
 
